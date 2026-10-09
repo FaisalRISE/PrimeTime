@@ -407,7 +407,7 @@ html[data-theme="dark"] .orgLogo.inv img{filter:invert(1) brightness(1.9)}
   @page{margin:10mm}
   body{background:#fff!important;color:#000!important;padding:0}
   .wrap,nav,.toast,#modalRoot,#refRoot{display:none!important}
-  #printArea{display:block;font-family:'Outfit',Arial,sans-serif;color:#000}
+  #printArea{display:block;font-family:'Outfit',Arial,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printArea table.psheet{width:100%;border-collapse:collapse;page-break-after:always}
   #printArea table.psheet:last-child{page-break-after:auto}
   #printArea table.psheet>thead{display:table-header-group}
@@ -420,6 +420,49 @@ html[data-theme="dark"] .orgLogo.inv img{filter:invert(1) brightness(1.9)}
   #printArea .brandbar .r{font-size:9.5px;color:#555;margin-top:2px}
   #printArea .brandbar .ct{text-align:right;font-size:9.5px;color:#333;line-height:1.45;white-space:nowrap}
   #printArea .brandbar .ct b{font-size:12px;display:block}
+  #printArea .brandbar .og{font-size:12.5px;margin-top:1.2mm;color:#000;line-height:1.2}
+  #printArea .brandbar .og b{font-size:16px;font-weight:800}
+  /* order of play */
+  #printArea .osec{break-inside:avoid;page-break-inside:avoid;margin-bottom:5mm}
+  #printArea h4.osh{font:800 17px 'Outfit',Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;margin:2mm 0 2mm;padding:.6mm 0 1.2mm 2.5mm;border-left:5px solid #000;border-bottom:2px solid #000}
+  #printArea h4.osh span{font-weight:500;letter-spacing:0;text-transform:none;color:#444;font-size:12px}
+  #printArea table.ot{width:100%;border-collapse:collapse;table-layout:fixed}
+  #printArea table.ot th{border:1px solid #000;background:#e9e9e9;padding:1.3mm 1.5mm;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:left;white-space:nowrap}
+  #printArea table.ot th.c{text-align:center}
+  #printArea table.ot td{border:1px solid #777;height:14.5mm;padding:0 2mm;vertical-align:middle}
+  #printArea table.ot th.gp,#printArea table.ot td.gp{border:0;background:#fff;padding:0}
+  #printArea table.ot td.ct{font:400 20px 'Anton',Impact,sans-serif;text-align:center;padding:0 1mm;line-height:1.1}
+  #printArea table.ot td.ct small{display:block;font:800 8.5px 'Outfit',Arial,sans-serif;text-transform:uppercase;color:#555}
+  #printArea table.ot td.tm .tn{display:block;font-size:15px;font-weight:800;line-height:1.15}
+  #printArea table.ot td.tm .tn.dim{color:#888;font-weight:500;font-style:italic}
+  #printArea table.ot td.tm .cp{display:block;font-size:11px;color:#444;margin-top:.8mm}
+  #printArea table.ot td.sc{border:1.8px solid #000;text-align:center;font:400 24px 'Anton',Impact,sans-serif}
+  #printArea table.ot td.sg{background:#f2f2f2;border-color:#9a9a9a}
+  #printArea table.ot td.rf{border-color:#9a9a9a}
+  /* team-wise line-up slips */
+  #printArea .tstop{border:1.4px solid #000;padding:2mm 3mm;margin-bottom:3mm;font-size:10px;line-height:1.55}
+  #printArea .tstop b{font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-right:2mm}
+  #printArea .tstop .pl{display:inline-block;margin-right:3mm;font-weight:700;font-size:11px}
+  #printArea .tstop .pl i{font-style:normal;font-size:8px;font-weight:800;color:#555;margin-right:1mm}
+  #printArea .tstop .rg{display:inline-block;margin-right:3mm;white-space:nowrap}
+  #printArea .tstop .rg em{font-style:normal;font-weight:800}
+  #printArea .tstop .n2{color:#444;font-size:9.5px;margin-top:.5mm}
+  #printArea .tslips{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+  #printArea .tslip{border:1.6px solid #000;padding:2mm 2.5mm 0;break-inside:avoid;page-break-inside:avoid}
+  #printArea .tslip .tsh{display:flex;justify-content:space-between;align-items:baseline;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+  #printArea .tslip .tsh b{font:400 15px 'Anton',Impact,sans-serif;letter-spacing:.03em}
+  #printArea .tslip .tsv{font-size:12px;font-weight:800;margin:.6mm 0 1.2mm;line-height:1.25}
+  #printArea .tslip .tsv i{font-style:normal;font-weight:500}
+  #printArea .tslip .tsv small{font-size:9.5px;color:#555;font-weight:500}
+  #printArea .tslip table{width:100%;border-collapse:collapse}
+  #printArea .tslip td{border-bottom:1px solid #999;height:6.1mm;padding:0 1.5mm}
+  #printArea .tslip td.s{width:9mm;font:400 13px 'Anton',Impact,sans-serif}
+  #printArea .tslip .tsig{font-size:8.5px;color:#444;padding:2.2mm 0 1mm;display:flex;gap:2mm}
+  #printArea .tslip .tsig u{flex:1;border-bottom:1px solid #000;text-decoration:none}
+  #printArea .tslip .tear{border-top:1.4px dashed #000;margin:0 -2.5mm;padding:1.2mm 2.5mm 1.6mm}
+  #printArea .tslip .tear .tl{font-size:8px;font-weight:700;color:#333;margin-bottom:.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #printArea .tslip .tear .tg{display:grid;grid-template-columns:1fr 1fr 1fr;column-gap:2mm}
+  #printArea .tslip .tear .tg span{font:400 10px 'Anton',Impact,sans-serif;border-bottom:1px solid #999;height:5.4mm;line-height:7mm}
   #printArea .legend{margin-top:6px;font-size:8.5px;color:#666}
   #printArea .pstrip{margin-top:8px;padding-top:5px;border-top:1px solid #ddd;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   #printArea .pstrip .plbl{font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#777}
@@ -495,7 +538,7 @@ const EVENT_TITLE = 'Prime Time × Munchilicious';
 const EVENT_SUB   = 'Team Event 2.0 · Sunday 18 October 2026 · ASC · 7:30 AM onwards';
 const ORGANISER   = 'RISE Sports';
 const CONTACT     = '9987029222';
-const BUILD = 'build 2026-10-07';
+const BUILD = 'build 2026-10-09';
 const ADMIN_DEFAULT = 'Hello43556';
 const SQUAD = 6;
 const MAX_ORGANISERS = 3, MAX_SPONSORS = 6;
@@ -1032,7 +1075,8 @@ function matchRow(m){
   const entry=canScore()&&S.mode==='entry'&&has&&!hasLog(m), odd=oddScore(m);
   const box=(side)=>{
     if(entry){ const v=m.fs&&m.fs[side]!=null?m.fs[side]:'';
-      return `<input class="sc ${v!==''?'filled':''} ${odd?'odd':''}" inputmode="numeric" data-k="${m.id}:${side}" value="${v}"
+      return `<input class="sc ${v!==''?'filled':''} ${odd?'odd':''}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+        maxlength="${String(TARGET).length}" data-k="${m.id}:${side}" value="${v}"
         oninput="scoreInput(this)" onchange="scoreCheck(this)" onfocus="this.select()" onclick="event.stopPropagation()">`; }
     const shown=has&&started(m);
     return `<div class="scv ${win&&win===(side==='a'?m.a:m.b)?'w':''}">${shown?s[side]:'–'}</div>`;
@@ -1149,7 +1193,8 @@ function vTeams(){
     h+=`<div class="card rcard"><div class="rhead"><span class="tdot" style="background:${t.hex};width:14px;height:14px"></span>
       <div style="flex:1;min-width:0">${ed?`<input class="txt" style="width:100%" value="${attr(t.name)}" onchange="setTeamName('${t.id}',this.value)">`
         :`<div class="tn">${esc(t.name)}</div>`}
-      <div class="note" style="font-size:11px">${esc(t.code)} · captain ${esc(captainOf(t))}</div></div></div>
+      <div class="note" style="font-size:11px">${esc(t.code)} · captain ${esc(captainOf(t))}</div></div>
+      ${canExport()&&!ed?`<button class="btn sm" title="Print this team's line-up slips" onclick="doPrint('tslips',false,'${t.id}')">🖨 Slips</button>`:''}</div>
       ${t.players.map(p=>`<div class="rrow"><span class="pool ${p.pool}">${p.pool}</span>${ed?`<input class="txt" value="${attr(p.name)}" onchange="setPlayerName('${p.id}',this.value)">`
         :`<span class="nm">${esc(p.name)}</span>`}</div>`).join('')}</div>`;
   });
@@ -1379,18 +1424,41 @@ function grabFocus(){ const a=document.activeElement; if(!a||!a.classList||!a.cl
   let s=null,e=null; try{s=a.selectionStart;e=a.selectionEnd;}catch(x){} return {k:a.dataset.k,s,e}; }
 function putFocus(f){ if(!f) return; const el=document.querySelector('input.sc[data-k="'+f.k+'"]'); if(!el||el.disabled) return;
   el.focus(); if(f.s!=null){ try{el.setSelectionRange(f.s,f.e);}catch(x){} } }
-/* repainting on `input` rather than `change`: no input event fires while Tab
-   is moving focus, so the box Tab is heading for is never destroyed */
+/* Typing a score must never rebuild the page. Rebuilding swaps the box being
+   typed in for a fresh copy, and on phones the keyboard loses whatever comes
+   next — type 15, get 1. So each keystroke only saves the number and touches
+   up the row it belongs to; the page is redrawn once, after focus has left
+   every score box. Moving between boxes with Tab or Enter never redraws. */
+let scoreDirty=false, scoreRenderT=null;
 function scoreInput(el){
   if(!canScore()) return;
   const [id,side]=el.dataset.k.split(':'), m=matchById(id); if(!m||hasLog(m)) return;
-  let v=el.value===''?null:Math.max(0,parseInt(el.value,10)||0);
+  const raw=el.value.replace(/[^0-9]/g,'');
+  if(raw!==el.value) el.value=raw;
+  let v=raw===''?null:parseInt(raw,10);
   if(v!=null&&v>TARGET){ v=TARGET; el.value=String(TARGET); }
-  m.fs=m.fs||{a:null,b:null}; if(m.fs[side]===v) return;
-  m.fs[side]=v; if(m.fs.a==null&&m.fs.b==null) m.fs=null;
+  m.fs=m.fs||{a:null,b:null};
+  if(m.fs[side]!==v){ m.fs[side]=v; if(m.fs.a==null&&m.fs.b==null) m.fs=null; save(); }
   const sec=el.closest&&el.closest('[data-sec]'); if(sec){ S.fold[sec.dataset.sec]=true; }
-  save(); render();
+  scoreDirty=true; paintScoreRow(m);
 }
+function paintScoreRow(m){
+  const odd=oddScore(m), win=winnerOf(m);
+  ['a','b'].forEach(sd=>{ const box=document.querySelector('input.sc[data-k="'+m.id+':'+sd+'"]'); if(!box) return;
+    box.classList.toggle('filled',box.value!==''); box.classList.toggle('odd',odd); });
+  const any=document.querySelector('input.sc[data-k="'+m.id+':a"]'), row=any&&any.closest('.mrow'); if(!row) return;
+  const sides=row.querySelectorAll('.side');
+  if(sides[0]){ sides[0].classList.toggle('w',!!win&&win===m.a); sides[0].classList.toggle('l',!!win&&win!==m.a); }
+  if(sides[1]){ sides[1].classList.toggle('w',!!win&&win===m.b); sides[1].classList.toggle('l',!!win&&win!==m.b); }
+}
+function flushScoreRender(){ clearTimeout(scoreRenderT);
+  scoreRenderT=setTimeout(()=>{ if(document.querySelector('input.sc:focus')) return;
+    if(!scoreDirty) return; scoreDirty=false; if(!modalOpen) render(); },350); }
+document.addEventListener('focusout',e=>{
+  const a=e.target; if(!a||!a.classList||!a.classList.contains('sc')) return;
+  const to=e.relatedTarget; if(to&&to.classList&&to.classList.contains('sc')) return;
+  flushScoreRender();
+});
 function scoreCheck(el){ const m=matchById(el.dataset.k.split(':')[0]); if(m&&oddScore(m)) toast('⚠ '+m.fs.a+'–'+m.fs.b+' is not a finished game to '+TARGET+' — check it'); }
 document.addEventListener('keydown',e=>{
   const a=e.target; if(e.key!=='Enter'||!a.classList||!a.classList.contains('sc')) return;
@@ -1407,11 +1475,11 @@ function exportBar(where){
   if(ex){
     if(where==='matches') h+=`<span class="expSet"><span class="expLbl">Order of play</span>
         <button class="btn sm" onclick="doPrint('order',true)">With scores</button><button class="btn sm" onclick="doPrint('order',false)">Blank</button></span>
-      <button class="btn sm" onclick="doPrint('slips',false)">Line-up slips</button>
+      <button class="btn sm" onclick="openModal(slipsModal())">Line-up slips…</button>
       <button class="btn sm" onclick="doPrint('sheets',false)">Referee scoresheets</button>`;
     if(where==='table') h+=`<button class="btn sm" onclick="doPrint('standings',true)">Standings PDF</button><button class="btn sm" onclick="exportCSV()">Spreadsheet (CSV)</button>`;
     if(where==='finals') h+=`<button class="btn sm" onclick="doPrint('finals',true)">Finals PDF</button><button class="btn sm" onclick="doPrint('finals',false)">Blank</button>`;
-    if(where==='teams') h+=`<button class="btn sm" onclick="doPrint('teams',true)">Team list PDF</button><button class="btn sm" onclick="doPrint('slips',false)">Line-up slips</button>`;
+    if(where==='teams') h+=`<button class="btn sm" onclick="doPrint('teams',true)">Team list PDF</button><button class="btn sm" onclick="openModal(slipsModal())">Line-up slips…</button>`;
   }
   if(isAdmin()&&where!=='teams') h+=`<button class="btn sm dgr" onclick="openModal(resetModal())">Reset scores…</button>`;
   return h+'</div>';
@@ -1590,7 +1658,7 @@ function vData(){
   ${canExport()?`<div class="card ed"><div class="hd" style="padding:0 0 6px"><b>Print & export</b></div>
     <p class="note"><b>PDF</b> opens your browser's print box — choose <i>Save as PDF</i> as the destination.</p>
     <div class="row" style="margin-top:10px"><button class="btn acc" onclick="doPrint('all',true)">Everything as PDF</button>
-      <button class="btn" onclick="doPrint('order',false)">Blank order of play</button><button class="btn" onclick="doPrint('slips',false)">Line-up slips</button>
+      <button class="btn" onclick="doPrint('order',false)">Blank order of play</button><button class="btn" onclick="openModal(slipsModal())">Line-up slips…</button>
       <button class="btn" onclick="doPrint('sheets',false)">Referee scoresheets</button><button class="btn" onclick="exportCSV()">CSV</button></div></div>`:''}
   ${isAdmin()?`<div class="card ed"><div class="hd" style="padding:0 0 6px"><b>Backup</b></div>
     <div class="row"><button class="btn acc" onclick="exportJSON()">Export backup</button>
@@ -1818,8 +1886,9 @@ async function shareImage(key){
 /* ===================== print ===================== */
 function pageHead(title,right){
   return `<div class="brandbar">${leadMarks().map(o=>orgLogo(o)?`<img src="${orgLogo(o)}" alt="">`:'').join('')}
-    <div class="bt"><div class="t">${title}</div><div class="r">${esc(S.meta.title)} · ${esc(S.meta.sub)}${right?' · '+right:''}</div></div>
-    ${eventPhone()?`<div class="ct">Queries on court<b>${esc(eventPhone())}</b>${esc(organiserLine()||hostName())}</div>`:''}</div>`;
+    <div class="bt"><div class="t">${title}</div>${organiserLine()?`<div class="og">Organised by <b>${esc(organiserLine())}</b></div>`:''}
+      <div class="r">${esc(S.meta.title)} · ${esc(S.meta.sub)}${right?' · '+right:''}</div></div>
+    ${eventPhone()?`<div class="ct">Queries on court<b>${esc(eventPhone())}</b>${organiserLine()?'':esc(hostName())}</div>`:''}</div>`;
 }
 function pageFoot(note){
   const sp=shownSponsors(), src=orgLogo(HOST()), hp=hostPhone();
@@ -1832,15 +1901,29 @@ function sheet(title,right,body,note){
     <tbody><tr><td>${body}</td></tr></tbody></table>`;
 }
 const rulesLine=()=>`Rally scoring · first to ${TARGET} · golden point at ${GOLDEN}–${GOLDEN} · substitution every ${GATE} combined${SWITCH_AT?' · ends change at '+SWITCH_AT:''}`;
+/* Order of play. The two score boxes sit in the middle, each beside its own
+   team, with a gap between them. Captains sign at the outer edges, set apart
+   by a gap, so a signature box is never mistaken for a score box. Each round
+   keeps its heading and table together: two rounds a page, with the Final &
+   Bronze joining the last page. */
 function orderSheet(withData){
-  const row=m=>{ const A=teamById(m.a),B=teamById(m.b),s=scoreOf(m),w=withData&&winnerOf(m), sh=withData&&counts(m)&&A&&B;
-    return `<tr><td class="c">${esc(courtName(m.c))}</td><td class="${w&&w===m.a?'w':''}">${A?esc(A.name):''}</td><td class="c w">${sh?s.a:''}</td>
-      <td class="c w">${sh?s.b:''}</td><td class="${w&&w===m.b?'w':''}">${B?esc(B.name):''}</td><td></td></tr>`; };
-  const head=`<tr><th class="c" style="width:22mm">Court</th><th>Team</th><th class="c" style="width:16mm">Score</th><th class="c" style="width:16mm">Score</th><th>Team</th><th style="width:34mm">Referee</th></tr>`;
-  let h='';
-  for(let r=1;r<=ROUNDS;r++) h+=`<h4 class="psec">Round ${r}</h4><table class="pt" style="--rh:7.6mm">${head}${LEAGUE().filter(m=>m.round===r).sort((a,b)=>a.c-b.c).map(row).join('')}</table>`;
-  h+=`<h4 class="psec">Final & Bronze <span>· 1st v 2nd · 3rd v 4th</span></h4><table class="pt" style="--rh:7.6mm">${head}${[matchById('mF'),matchById('mB')].map(row).join('')}</table>`;
-  return sheet('Order of play',S.courts.length+' courts',h,rulesLine());
+  const tcell=(m,tid,seed)=>{ const T=tid?teamById(tid):null, w=withData&&winnerOf(m);
+    if(!T||(!withData&&m.stage!=='league')) return `<td class="tm"><span class="tn dim">${seed||''}</span></td>`;
+    return `<td class="tm ${w&&w===tid?'w':''}"><span class="tn">${esc(T.name)}</span><span class="cp">Captain: ${esc(captainOf(T))}</span></td>`; };
+  const row=m=>{ const s=scoreOf(m), sh=withData&&counts(m)&&m.a&&m.b;
+    const seeds=m.stage==='final'?['1st in table','2nd in table']:m.stage==='bronze'?['3rd in table','4th in table']:['',''];
+    return `<tr><td class="ct">${esc(courtName(m.c).replace(/^court\s*/i,''))}${m.stage!=='league'?`<small>${m.stage==='final'?'Final':'Bronze'}</small>`:''}</td>
+      <td class="sg"></td><td class="gp"></td>${tcell(m,m.a,seeds[0])}<td class="sc">${sh?s.a:''}</td><td class="gp"></td>
+      <td class="sc">${sh?s.b:''}</td>${tcell(m,m.b,seeds[1])}<td class="gp"></td><td class="sg"></td><td class="rf"></td></tr>`; };
+  const head=`<colgroup><col style="width:15mm"><col style="width:19mm"><col style="width:3mm"><col><col style="width:15mm"><col style="width:4mm">
+      <col style="width:15mm"><col><col style="width:3mm"><col style="width:19mm"><col style="width:11mm"></colgroup>
+    <tr><th class="c">Court</th><th class="c">Capt. sign</th><th class="gp"></th><th>Team</th><th class="c">Score</th><th class="gp"></th>
+      <th class="c">Score</th><th>Team</th><th class="gp"></th><th class="c">Capt. sign</th><th class="c">Ref</th></tr>`;
+  const sec=(title,sub,ms)=>`<div class="osec"><h4 class="osh">${title}${sub?` <span>${sub}</span>`:''}</h4><table class="ot">${head}${ms.map(row).join('')}</table></div>`;
+  const rounds=[]; for(let r=1;r<=ROUNDS;r++) rounds.push(sec('Round '+r,'',LEAGUE().filter(m=>m.round===r).sort((a,b)=>a.c-b.c)));
+  const pages=[]; for(let i=0;i<rounds.length;i+=2) pages.push(rounds.slice(i,i+2).join(''));
+  pages[pages.length-1]+=sec('Final &amp; Bronze','· 1st v 2nd · 3rd v 4th',[matchById('mF'),matchById('mB')]);
+  return pages.map((p,i)=>sheet('Order of play',S.courts.length+' courts'+(pages.length>1?' · page '+(i+1)+' of '+pages.length:''),p,rulesLine())).join('');
 }
 function standingsTable(withData){
   const st=standings();
@@ -1883,6 +1966,39 @@ function slip(m,tid,opp){
     ${t?`<div class="ros">${t.players.map(p=>p.pool+': '+esc(p.name)).join(' · ')}</div>`:''}
     <div class="sig">Captain's signature — order cannot change once submitted</div></div>`;
 }
+/* Team-wise slips: one page per team, one slip per match, nothing about any
+   other team's order on it — captains fill these in privately. */
+function rotGuide(){ let g=''; for(let k=0;k<SQUAD;k++) g+=`<span class="rg"><em>${k===0?0:k*GATE+1}–${(k+1)*GATE}</em> A${k+1}+A${(k+1)%SQUAD+1}</span>`;
+  return g+`<span class="rg"><em>${SQUAD*GATE+1}+</em> A1+A2 again</span>`; }
+function tslip(t,label,oppHTML,courtTxt){
+  const six=[1,2,3,4,5,6];
+  return `<div class="tslip"><div class="tsh"><b>${label}</b><span>${courtTxt}</span></div>
+    <div class="tsv">${esc(t.name)} <i>v ${oppHTML}</i></div>
+    <table>${six.map(i=>`<tr><td class="s">A${i}</td><td></td></tr>`).join('')}</table>
+    <div class="tsig">Captain's signature <u></u></div>
+    <div class="tear"><div class="tl">&#9986; Copy for the opposing captain · ${label} · ${esc(t.name)}</div>
+      <div class="tg">${six.map(i=>`<span>A${i}</span>`).join('')}</div></div></div>`;
+}
+function teamSlipPage(t){
+  const ms=LEAGUE().filter(m=>m.a===t.id||m.b===t.id).sort((x,y)=>x.round-y.round);
+  const slips=ms.map(m=>{ const o=teamById(m.a===t.id?m.b:m.a);
+    return tslip(t,'Round '+m.round,`${esc(o.name)} <small>(Capt. ${esc(captainOf(o))})</small>`,esc(courtName(m.c))); });
+  slips.push(tslip(t,'Final / Bronze','________________ <small>(only if you qualify)</small>','Court ______'));
+  const top=`<div class="tstop"><div><b>Squad</b>${t.players.map(p=>`<span class="pl"><i>${p.pool}</i>${esc(p.name)}</span>`).join('')}</div>
+    <div><b>Who plays together</b>${rotGuide()}</div>
+    <div class="n2">Fill one slip per match and hand it in before that match starts. Once submitted, the order cannot change. Keep this sheet within your team.</div></div>`;
+  return sheet('Line-up slips · '+esc(t.name),'Captain '+esc(captainOf(t))+' · for your team only',top+`<div class="tslips">${slips.join('')}</div>`,'');
+}
+function slipsModal(){
+  if(!canExport()) return '';
+  return `<h3>Line-up slips</h3><p class="hint">For captains, print by team. Each team gets its own page with one slip per match, and no other team's order is on it.</p>
+    <div class="eyebrow" style="margin:14px 2px 6px">By team · for captains</div>
+    <button class="btn acc" style="width:100%" onclick="closeModal();doPrint('tslips',false,'all')">All ${S.teams.length} teams · a separate page each</button>
+    <div class="imgGrid" style="margin-top:8px">${S.teams.map(t=>`<button class="imgOpt" onclick="closeModal();doPrint('tslips',false,'${t.id}')"><b>${esc(t.name)}</b><span>Captain ${esc(captainOf(t))}</span></button>`).join('')}</div>
+    <div class="eyebrow" style="margin:16px 2px 6px">By round · for the organiser desk</div>
+    <button class="btn" style="width:100%" onclick="closeModal();doPrint('slips',false)">By round · both teams of every match on one page</button>
+    <button class="btn" style="width:100%;margin-top:14px" onclick="closeModal()">Close</button>`;
+}
 function slipsSheets(){
   let out='';
   for(let r=1;r<=ROUNDS;r++){ const ms=LEAGUE().filter(m=>m.round===r).sort((a,b)=>a.c-b.c);
@@ -1908,10 +2024,11 @@ function sheetsPages(){
   for(let i=0;i<all.length;i+=2) out+=sheet('Referee scoresheet','paper backup',all.slice(i,i+2).map(scoresheet).join(''),'Cross off each point as it is won. Grey boxes mark every fifth point.');
   return out;
 }
-function doPrint(what,withData){
+function doPrint(what,withData,arg){
   if(!canExport()) return toast('Not allowed on this device');
   const html= what==='order'?orderSheet(withData) : what==='standings'?standingsSheet(true) : what==='finals'?finalsSheet(withData)
     : what==='teams'?teamsSheet() : what==='slips'?slipsSheets() : what==='sheets'?sheetsPages()
+    : what==='tslips'?(arg==='all'?S.teams:[teamById(arg)]).filter(Boolean).map(teamSlipPage).join('')
     : orderSheet(true)+standingsSheet(true)+finalsSheet(true)+teamsSheet();
   document.getElementById('printArea').innerHTML=html; window.print();
 }
@@ -2017,7 +2134,7 @@ async function syncPull(force){
     sync.cursor=newest;
     if(changed){ refresh(); quietSave(); const snap=syncSnapshot(); Object.keys(snap).forEach(k=>{ if(!sync.dirty[k]) sync.sent[k]=JSON.stringify(snap[k]); }); }
     sync.lastOk=Date.now(); syncSave(); syncStatus('live'); syncLog(changed?'received '+changed+' change'+(changed>1?'s':''):'checked · nothing new');
-    if(changed){ if(S.ref) renderRef(); if(!modalOpen&&!document.querySelector('input.sc:focus')) render(); }
+    if(changed){ if(S.ref) renderRef(); if(document.querySelector('input.sc:focus')) scoreDirty=true; else if(!modalOpen) render(); }
   }catch(e){ syncLog('pull failed: '+(e.message||e)); syncStatus('off_line',String(e.message||e)); }
   finally{ sync.pulling=false; }
 }
