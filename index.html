@@ -192,8 +192,11 @@ html[data-theme="dark"] .qtag.b{color:#f2b98a}
 .capPick input{display:none}
 .capPick.on{filter:none;opacity:1;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .luCard{padding:14px;margin-bottom:12px}
-.luHead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.luHead b{font:400 18px 'Anton';letter-spacing:.03em;text-transform:uppercase}
+.luHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+.luHead .rnd2{font:400 18px 'Anton';letter-spacing:.03em;text-transform:uppercase;flex:none;color:var(--accentInk)}
+.luVs{font-size:18px;font-weight:800;line-height:1.25}
+.luVs i{font-style:normal;font-weight:500;color:var(--dim);font-size:14px;margin:0 3px}
+.luSub{font-size:12px;color:var(--dim);font-weight:600;margin-top:2px}
 .luSt{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
 .luOrder{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .luOrder span{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12.5px;font-weight:700}
@@ -550,7 +553,7 @@ const EVENT_TITLE = 'Prime Time × Munchilicious';
 const EVENT_SUB   = 'Team Event 2.0 · Sunday 18 October 2026 · ASC · 7:30 AM onwards';
 const ORGANISER   = 'RISE Sports';
 const CONTACT     = '9987029222';
-const BUILD = 'build 2026-10-16b';
+const BUILD = 'build 2026-10-17';
 const ADMIN_DEFAULT = 'Hello43556';
 const SQUAD = 6;
 const MAX_ORGANISERS = 3, MAX_SPONSORS = 6;
@@ -1133,7 +1136,7 @@ function modeBar(){
   return `<div class="row" style="margin-bottom:12px;align-items:center">
     <button class="chip ${S.mode==='entry'?'on':''}" onclick="S.mode='entry';quietSave();render()">⌨ Type final scores</button>
     <button class="chip ${S.mode==='ref'?'on':''}" onclick="S.mode='ref';quietSave();render()">🏓 Court console</button>
-    <span class="note">${S.mode==='entry'?'Type each final score — Tab or Enter moves on. To score a match rally by rally, use its Console button.'
+    <span class="note">${S.mode==='entry'?'Type each final score — Tab or Enter moves on. Line-ups shows the captains\' orders or lets you enter them. For point-by-point scoring, switch to Court console.'
       :'Tap a match to declare line-ups and score it rally by rally.'}</span></div>`;
 }
 function oddBanner(){
@@ -1156,8 +1159,9 @@ function matchRow(m){
   let btn='';
   if(has&&canScore()&&S.mode==='ref') btn=`<button class="refbtn ${isLive(m)?'go':''}" onclick="event.stopPropagation();openRef('${m.id}')">${
     isOver(m)?'VIEW':isLive(m)?'RESUME':lineupReady(m)?'SCORE':'LINE-UPS'}</button>`;
-  else if(has&&canScore()) btn=`<button class="refbtn ${isLive(m)?'go':''}" tabindex="-1" title="Score this match rally by rally" onclick="event.stopPropagation();openRef('${m.id}')">${
-    isLive(m)?'● LIVE':hasLog(m)?'CONSOLE':'CONSOLE'}</button>`;
+  else if(has&&canScore()){ const n=[m.a,m.b].filter(t=>subOf(m,t)).length, ready=lineupReady(m);
+    btn=`<button class="refbtn ${ready?'go':''}" tabindex="-1" title="See or enter the line-ups" onclick="event.stopPropagation();openLineups('${m.id}')">${
+      ready?'✓ LINE-UPS':n?'LINE-UPS '+n+'/2':'LINE-UPS'}</button>`; }
   const rowClick=has&&!(canScore()&&S.mode==='entry');
   return `<div class="mrow" ${rowClick?`onclick="openRef('${m.id}')"`:'style="cursor:default"'}>
     <div class="mno"><span>${m.stage==='league'?'R'+m.round:m.stage==='final'?'FINAL':'BRONZE'}</span><span class="ctTag">${esc(courtName(m.c))}</span>
@@ -1331,9 +1335,13 @@ function vRules(){
 function openRef(id){
   const m=matchById(id); if(!m) return;
   if(!m.a||!m.b) return toast('Both teams must be known first');
-  S.ref=id; document.body.classList.add('reflock'); renderRef();
+  S.ref=id; S.refMode='console'; document.body.classList.add('reflock'); renderRef();
 }
-function closeRef(){ S.ref=null; S.luEdit=null; document.body.classList.remove('reflock'); document.getElementById('refRoot').innerHTML=''; }
+function openLineups(id){
+  const m=matchById(id); if(!m||!m.a||!m.b) return toast('Both teams must be known first');
+  S.ref=id; S.refMode='lineups'; document.body.classList.add('reflock'); renderRef();
+}
+function closeRef(){ S.ref=null; S.refMode=null; S.luEdit=null; document.body.classList.remove('reflock'); document.getElementById('refRoot').innerHTML=''; }
 function refBack(){ closeRef(); render(); }
 const BALL='<svg class="ball" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#fde047" stroke="#a16207" stroke-width="1.4"/>'+
   '<g fill="#a16207" opacity=".85"><circle cx="8.4" cy="7.6" r="1.5"/><circle cx="15.6" cy="7.6" r="1.5"/><circle cx="12" cy="12" r="1.5"/>'+
@@ -1344,13 +1352,15 @@ function renderRef(){
   const m=matchById(S.ref); if(!m||!m.a||!m.b){ closeRef(); return; }
   const keepY=(root.querySelector('.refWrap')||{}).scrollTop||0;
   let body;
+  const luOnly=S.refMode==='lineups';
   const editing=S.luEdit===m.id&&!hasLog(m)&&canScore();
-  if(!lineupReady(m)||editing) body=(canScore()&&!hasLog(m))?lineupEditor(m):viewNoLineup(m);
+  if(luOnly) body=(canScore()&&!hasLog(m))?lineupEditor(m,true):lineupView(m);
+  else if(!lineupReady(m)||editing) body=(canScore()&&!hasLog(m))?lineupEditor(m):viewNoLineup(m);
   else body=consoleHTML(m);
   root.innerHTML=`<div class="refWrap"><div class="refInner">
     <div class="refTop"><button class="iconbtn" onclick="refBack()" title="Close">✕</button>
       <div class="ttl">${esc(teamById(m.a).name)} v ${esc(teamById(m.b).name)}
-        <div class="sub2">${esc(matchWhere(m))} · first to ${TARGET}${canScore()?'':' · watching live'}</div></div></div>
+        <div class="sub2">${esc(matchWhere(m))} · ${luOnly?'line-ups':'first to '+TARGET+(canScore()?'':' · watching live')}</div></div></div>
     ${body}</div></div>`;
   const w=root.querySelector('.refWrap'); if(w) w.scrollTop=keepY;
 }
@@ -1411,7 +1421,8 @@ function vLineups(){
     const opp=teamById(m.a===T.id?m.b:m.a), mine=subOf(m,T.id), theirs=subOf(m,opp.id), key='cap:'+m.id;
     const pending=!!sync.dirty[K('lu:'+m.id+':'+T.id)];
     const chip=(ok,txt)=>`<span class="stchip ${ok?'st-live':'st-wait'}">${ok?'✓':'○'} ${txt}</span>`;
-    h+=`<div class="card luCard"><div class="luHead"><b>${esc(matchTitle(m))}</b><span class="dimtxt">${esc(courtName(m.c))} · v <b style="font:700 12.5px Outfit;text-transform:none">${esc(opp.name)}</b> (Capt. ${esc(captainOf(opp))})</span></div>
+    h+=`<div class="card luCard"><div class="luHead"><div><div class="luVs">${esc(T.name)} <i>v</i> ${esc(opp.name)}</div>
+        <div class="luSub">${esc(courtName(m.c))} · their captain ${esc(captainOf(opp))}</div></div><span class="rnd2">${esc(matchTitle(m))}</span></div>
       <div class="luSt">${chip(!!mine,mine?(pending?'You submitted · sending…':'You submitted'):'You have not submitted')}${chip(!!theirs,theirs?opp.name+' submitted':opp.name+' not yet')}</div>`;
     if(mine){
       const own=luDec(m.id,T.id,mine.enc);
@@ -1448,9 +1459,17 @@ function reopenSub(mid,tid){
   if(!confirm('Reopen '+teamById(tid).name+' line-up for '+matchWhere(m)+'? Their captain can submit again.'+(bothIn(m)?'\n\nBoth orders have already been revealed to everyone.':''))) return;
   putSub(m,tid,null,'reopen'); m.lineup={}; save(); render(); toast('Reopened'); if(sync.on) drainQueue(6);
 }
-function lineupEditor(m){
-  let h=`<p class="note">Enter each team's order <b>A1–A6</b>. Captains swap sheets before the match; once the first point is scored the order is locked.</p>`;
-  if(typedBoth(m)) h+=`<div class="alert warn"><span>⚠</span><span>This match has a typed score of ${m.fs.a}–${m.fs.b}. Scoring it on the console will replace that.</span></div>`;
+/* read-only line-ups: after a match has been scored point by point */
+function lineupView(m){
+  return [m.a,m.b].map(tid=>{ const t=teamById(tid), lu=m.lineup&&m.lineup[tid], st=sealState(m,tid);
+    return `<div class="card ed" style="margin-bottom:12px"><div class="row" style="align-items:center;margin-bottom:6px">
+      <span class="tdot" style="background:${t.hex}"></span><span class="anton" style="font-size:18px;text-transform:uppercase">${esc(t.name)}</span></div>
+      ${lu&&lu.every(Boolean)?orderHTML(lu):`<div class="sealBox">${st==='sealed'?'🔒 Submitted — sealed until the other team is in.':'Not declared.'}</div>`}</div>`; }).join('');
+}
+function lineupEditor(m,luOnly){
+  let h=`<p class="note">${luOnly?'Captains\' orders appear here once both teams have submitted. If a captain hands in a paper slip instead, enter it here.'
+    :'Enter each team\'s order <b>A1–A6</b>. Captains swap sheets before the match; once the first point is scored the order is locked.'}</p>`;
+  if(typedBoth(m)&&!luOnly) h+=`<div class="alert warn"><span>⚠</span><span>This match has a typed score of ${m.fs.a}–${m.fs.b}. Scoring it on the console will replace that.</span></div>`;
   const anySub=!!(subOf(m,m.a)||subOf(m,m.b));
   [m.a,m.b].forEach(tid=>{
     const t=teamById(tid), other=teamById(tid===m.a?m.b:m.a), cur=(m.lineup&&m.lineup[tid])||[null,null,null,null,null,null];
@@ -1473,7 +1492,8 @@ function lineupEditor(m){
     h+=`<div class="row" style="margin-top:10px"><button class="btn sm" onclick="autoLU('${m.id}','${tid}')">⚡ Fill in sheet order</button>
       <button class="btn sm" onclick="clearLU('${m.id}','${tid}')">Clear</button></div></div>`;
   });
-  if(lineupReady(m)) h+=`<button class="bigok" onclick="S.luEdit=null;renderRef()">✓ Line-ups declared — go to the court</button>`;
+  if(luOnly) h+=`<button class="bigok ${lineupReady(m)?'':'amb'}" onclick="refBack()">${lineupReady(m)?'✓ Both line-ups in — done':'Done'}</button>`;
+  else if(lineupReady(m)) h+=`<button class="bigok" onclick="S.luEdit=null;renderRef()">✓ Line-ups declared — go to the court</button>`;
   else h+=`<p class="note">Not scoring this one live? Close this and type the final score on the Matches tab instead.</p>`;
   return h;
 }
@@ -2294,7 +2314,7 @@ function matchPayload(m){ return {lineup:m.lineup||{},flip:m.flip||{},log:m.log|
   startLeft:m.startLeft||null,acked:m.acked||[],endsAcked:!!m.endsAcked}; }
 function syncSnapshot(){
   const o={};
-  if(S.adminHash||S.scorerHash||S.orgHash) o[K('cfg')]={adminHash:S.adminHash||'',scorerHash:S.scorerHash||'',orgHash:S.orgHash||'',capHash:S.capHash||{},capBox:S.capBox||''};
+  if(S.adminHash||S.scorerHash||S.orgHash||(S.capHash&&Object.keys(S.capHash).length)) o[K('cfg')]={adminHash:S.adminHash||'',scorerHash:S.scorerHash||'',orgHash:S.orgHash||'',capHash:S.capHash||{},capBox:S.capBox||''};
   o[K('fmt')]={meta:S.meta,rules:S.rules,access:ACCESS(),courts:S.courts,finC:S.finC,broC:S.broC};
   o[K('brand')]={host:HOST(),organisers:ORGANISERS(),sponsors:SPONSORS()};
   S.teams.forEach(t=>{ o[K('team:'+t.id)]={name:t.name,players:t.players.map(p=>p.name),pools:t.players.map(p=>p.pool),cap:t.cap||null}; });
