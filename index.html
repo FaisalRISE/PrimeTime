@@ -119,7 +119,7 @@ nav button.on{color:var(--accentInk);border-top-color:var(--accent);background:c
 .mno{width:40px;flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;font:700 10px 'Outfit';color:var(--dim)}
 .ctTag{display:inline-block;font:800 9.5px 'Outfit';letter-spacing:.04em;padding:2px 5px;border-radius:4px;background:color-mix(in srgb,var(--cyan) 18%,transparent);color:var(--cyanInk)}
 .side{flex:1;min-width:0;display:flex;align-items:center;gap:7px}
-.side .nm{font-size:13.5px;line-height:1.25;overflow-wrap:break-word;word-break:normal}
+.side .nm{font-size:13.5px;line-height:1.25;overflow-wrap:anywhere;word-break:normal;min-width:0}
 .side .cp{display:block;font-size:10.5px;color:var(--dim);font-weight:600}
 .side.w .nm{color:var(--win);font-weight:800}
 .side.l .nm{color:var(--muted)}
@@ -137,6 +137,21 @@ input.sc.odd{border-color:var(--gold)!important;box-shadow:0 0 0 2px color-mix(i
 .refbtn.go{background:var(--mint);border-color:var(--mint);color:#fff}
 .liveDot{color:var(--mint);font-size:9px;vertical-align:2px;animation:pulse 1.6s infinite}
 .oddsc{color:var(--gold);font-size:12px}
+/* On a phone, a match row stacks: round and court with the button on top,
+   then one line per team with its own score box, so names never run under
+   the boxes. Tab still goes team A's box, then team B's. */
+@media(max-width:620px){
+  .mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"mno btn" "sa xa" "sb xb";column-gap:12px;row-gap:7px;align-items:center;padding:11px 12px}
+  .mrow .mno{grid-area:mno;width:auto;flex-direction:row;align-items:center;gap:7px;font-size:11px}
+  .mrow>.side{grid-area:sa}
+  .mrow>.side.b{grid-area:sb;justify-content:flex-start;text-align:left}
+  .mrow .bx-a{grid-area:xa} .mrow .bx-b{grid-area:xb}
+  .mrow .sep{display:none}
+  .mrow .refbtn{grid-area:btn;justify-self:end;padding:7px 10px}
+  .mrow .side .nm{font-size:15px}
+  .mrow input.sc{width:60px;height:44px;font-size:19px}
+  .mrow .scv{width:60px;font-size:24px}
+}
 /* standings */
 .tblWrap{padding:0 10px 10px;overflow-x:auto}
 table.tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -288,6 +303,7 @@ html[data-theme="dark"] .logo.inv{filter:invert(1) brightness(1.9)}
 .leadMarks .logo{height:52px;width:auto;max-width:170px;object-fit:contain}
 .byOrg{font-size:11px;color:var(--dim);margin-top:2px;font-weight:600}
 @media(max-width:520px){.leadMarks .logo{height:42px;max-width:130px}h1{font-size:21px}}
+@media(max-width:420px){.leadMarks .logo{height:32px;max-width:92px}h1{font-size:19px;overflow-wrap:anywhere}.brand{gap:8px}}
 .sponsFoot{margin-top:26px;padding:14px 4px 13px;border-top:1px solid var(--border)}
 .sponsFoot .eyebrow{display:block;margin-bottom:8px}
 .sponsRow{display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center}
@@ -1150,11 +1166,11 @@ function matchRow(m){
   const entry=canScore()&&S.mode==='entry'&&has&&!hasLog(m), odd=oddScore(m);
   const box=(side)=>{
     if(entry){ const v=m.fs&&m.fs[side]!=null?m.fs[side]:'';
-      return `<input class="sc ${v!==''?'filled':''} ${odd?'odd':''}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+      return `<input class="sc bx-${side} ${v!==''?'filled':''} ${odd?'odd':''}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
         maxlength="${String(TARGET).length}" data-k="${m.id}:${side}" value="${v}"
         oninput="scoreInput(this)" onchange="scoreCheck(this)" onfocus="this.select()" onclick="event.stopPropagation()">`; }
     const shown=has&&started(m);
-    return `<div class="scv ${win&&win===(side==='a'?m.a:m.b)?'w':''}">${shown?s[side]:'–'}</div>`;
+    return `<div class="scv bx-${side} ${win&&win===(side==='a'?m.a:m.b)?'w':''}">${shown?s[side]:'–'}</div>`;
   };
   let btn='';
   if(has&&canScore()&&S.mode==='ref') btn=`<button class="refbtn ${isLive(m)?'go':''}" onclick="event.stopPropagation();openRef('${m.id}')">${
