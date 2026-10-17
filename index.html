@@ -188,6 +188,18 @@ html[data-theme="dark"] .qtag.b{color:#f2b98a}
 .pool.A1{background:rgba(6,214,160,.18);color:#06795c}
 .pool.G{background:rgba(244,99,168,.2);color:#b0256c}
 .pool.A2{background:rgba(199,146,234,.22);color:#7b3fa8}
+.capPick{flex:none;display:inline-flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;filter:grayscale(1);opacity:.45}
+.capPick input{display:none}
+.capPick.on{filter:none;opacity:1;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.luCard{padding:14px;margin-bottom:12px}
+.luHead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.luHead b{font:400 18px 'Anton';letter-spacing:.03em;text-transform:uppercase}
+.luSt{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.luOrder{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.luOrder span{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12.5px;font-weight:700}
+.luOrder span i{font:400 13px 'Anton';color:var(--accentInk);font-style:normal;margin-right:5px}
+@media(max-width:520px){.luOrder{grid-template-columns:repeat(2,1fr)}}
+.sealBox{border:1px dashed var(--borderL);border-radius:10px;padding:12px;font-size:12.5px;color:var(--muted);background:var(--surface)}
 html[data-theme="dark"] .pool.M{color:#9cc6ff}
 html[data-theme="dark"] .pool.A1{color:#7ff0cf}
 html[data-theme="dark"] .pool.G{color:#f8c4dd}
@@ -538,7 +550,7 @@ const EVENT_TITLE = 'Prime Time × Munchilicious';
 const EVENT_SUB   = 'Team Event 2.0 · Sunday 18 October 2026 · ASC · 7:30 AM onwards';
 const ORGANISER   = 'RISE Sports';
 const CONTACT     = '9987029222';
-const BUILD = 'build 2026-10-09';
+const BUILD = 'build 2026-10-16b';
 const ADMIN_DEFAULT = 'Hello43556';
 const SQUAD = 6;
 const MAX_ORGANISERS = 3, MAX_SPONSORS = 6;
@@ -627,7 +639,8 @@ function blank(){
                 {id:'o1',name:'Munchilicious',logo:'',invert:false,phone:''}],
     sponsors:[], rules:clone(RULES_DEFAULT), courts:COURTS_DEFAULT.slice(), finC:0, broC:1,
     teams:freshTeams(), matches:buildMatches(),
-    tab:'courts', mode:'ref', role:'view', theme:'light', statsView:'players',
+    tab:'courts', mode:'entry', modeV:2, role:'view', capTeam:null, theme:'light', statsView:'players',
+    subs:{}, capHash:{}, capBox:'',
     adminHash:'', scorerHash:'', orgHash:'', access:clone(ACCESS_DEFAULT),
     fold:{}, inv:{}, ref:null, luEdit:null, editTeams:false };
 }
@@ -636,7 +649,9 @@ function load(){
     if(p&&Array.isArray(p.matches)&&Array.isArray(p.teams)){
       const out=Object.assign(blank(),p);
       out.ref=null; out.luEdit=null; out.access=normAccess(out.access); out.rules=normRules(out.rules);
-      out.fold=out.fold||{}; out.inv=out.inv||{};
+      out.fold=out.fold||{}; out.inv=out.inv||{}; out.subs=out.subs||{}; out.capHash=out.capHash||{};
+      if(out.modeV!==2){ out.mode='entry'; out.modeV=2; }
+      if(out.role==='captain'&&!out.teams.some(t=>t.id===out.capTeam)) out.role='view';
       if(!Array.isArray(out.courts)||out.courts.length!==COURTS_DEFAULT.length) out.courts=COURTS_DEFAULT.slice();
       normBrand(out); return out; } } }catch(e){}
   return blank();
@@ -682,7 +697,8 @@ function orgImg(o,cls){ const s=orgLogo(o); if(!s) return '';
 /* ===================== teams and matches ===================== */
 const teamById=id=>S.teams.find(t=>t.id===id)||null;
 const tcol=t=>t?(S.theme==='light'?t.ink:t.hex):'var(--dim)';
-const captainOf=t=>t&&t.players[0]?t.players[0].name:'';
+const captainP=t=>t?(t.players.find(p=>p.id===t.cap)||t.players[0]||null):null;
+const captainOf=t=>{ const p=captainP(t); return p?p.name:''; };
 function playerById(id){ for(const t of S.teams){ const p=t.players.find(x=>x.id===id); if(p) return p; } return null; }
 const pName=id=>{const p=playerById(id);return p?(p.name||'—'):'—';};
 const pPool=id=>{const p=playerById(id);return p?p.pool:'';};
@@ -820,8 +836,15 @@ function h2h(x,y){
   const m=LEAGUE().find(m=>(m.a===x&&m.b===y)||(m.a===y&&m.b===x));
   if(!m) return 0; const w=winnerOf(m); return w===x?1:w===y?-1:0;
 }
-/* One table of all ten teams. Ranked on points scored across the four
-   matches, then point difference, then wins, then head-to-head if they met. */
+/* One table of all ten teams, ranked:
+     1. wins
+     2. point difference (points won minus points lost)
+     3. head-to-head — only when exactly two teams are still level and they met
+     4. total points won
+     5. fewest points conceded
+   Teams level on wins and difference are taken as a block. A block of two
+   that met is settled by their match; any other block (two that never met,
+   or three or more) goes straight to points won, then points conceded. */
 function standings(){
   const acc={}; S.teams.forEach((t,i)=>{acc[t.id]={team:t,ix:i,p:0,w:0,l:0,pf:0,pa:0};});
   LEAGUE().forEach(m=>{
@@ -832,9 +855,18 @@ function standings(){
       if(win===m.a){acc[m.a].w++;acc[m.b].l++;} else {acc[m.b].w++;acc[m.a].l++;} }
   });
   const list=Object.values(acc); list.forEach(r=>r.diff=r.pf-r.pa);
-  list.sort((p,q)=>(q.pf-p.pf)||(q.diff-p.diff)||(q.w-p.w)||h2h(q.team.id,p.team.id)||(p.ix-q.ix));
-  list.forEach((r,i)=>r.rank=i+1);
-  return list;
+  const lvl=(p,q)=>(q.w-p.w)||(q.diff-p.diff);
+  list.sort((p,q)=>lvl(p,q)||(p.ix-q.ix));
+  const out=[];
+  for(let i=0;i<list.length;){
+    let j=i+1; while(j<list.length&&lvl(list[i],list[j])===0) j++;
+    const block=list.slice(i,j);
+    block.sort((p,q)=>{ if(block.length===2){ const h=h2h(q.team.id,p.team.id); if(h) return h; }
+      return (q.pf-p.pf)||(p.pa-q.pa)||(p.ix-q.ix); });
+    out.push(...block); i=j;
+  }
+  out.forEach((r,i)=>r.rank=i+1);
+  return out;
 }
 const leaguePlayed=()=>LEAGUE().filter(isOver).length;
 const leagueDone=()=>LEAGUE().every(isOver);
@@ -848,7 +880,7 @@ function syncFinals(){
   if(!started(F)) setPair(F,r[0].team.id,r[1].team.id);
   if(!started(B)) setPair(B,r[2].team.id,r[3].team.id);
 }
-function refresh(){ applyRules(); syncFinals(); }
+function refresh(){ applyRules(); syncFinals(); revealSubs(); }
 function champions(){
   const F=matchById('mF'), B=matchById('mB'), out={};
   if(F&&isOver(F)){ out.gold=teamById(winnerOf(F)); out.silver=teamById(winnerOf(F)===F.a?F.b:F.a); }
@@ -865,8 +897,9 @@ const nowOn=ci=>courtQueue(ci).find(m=>m.a&&m.b&&!isOver(m))||null;
 /* ===================== access ===================== */
 const isAdmin=()=>S.role==='admin', isOrganiser=()=>S.role==='organiser';
 const canScore=()=>S.role==='admin'||S.role==='organiser'||S.role==='scorer';
-const ROLE_LABEL={admin:'Admin',organiser:'Organiser',scorer:'Referee',view:'Viewer'};
-const roleName=()=>({admin:'ADMIN',organiser:'ORGANISER',scorer:'REFEREE'})[S.role]||'VIEW';
+const isCaptain=()=>S.role==='captain'&&!!teamById(S.capTeam);
+const ROLE_LABEL={admin:'Admin',organiser:'Organiser',scorer:'Referee',captain:'Captain',view:'Viewer'};
+const roleName=()=>({admin:'ADMIN',organiser:'ORGANISER',scorer:'REFEREE',captain:'CAPTAIN'})[S.role]||'VIEW';
 const orgMay=k=>isAdmin()||(isOrganiser()&&ACCESS().org[k]!==false);
 const canEditTeams=()=>orgMay('teams'), canExport=()=>orgMay('print'), canShare=()=>orgMay('share');
 
@@ -880,9 +913,19 @@ async function hashPin(p){
 async function adminMatches(v){ const h=await hashPin(v); return S.adminHash?h===S.adminHash:h===await hashPin(ADMIN_DEFAULT); }
 const scorerPinSet=()=>!!S.scorerHash, orgPinSet=()=>!!S.orgHash;
 function openAccess(){ openModal(accessModal()); }
-function accessModal(err){
+function accessModal(err,capErr){
   if(S.role!=='view') return signedInModal();
-  return `<h3>Unlock this device</h3>
+  const pre=accessModal.team||'';
+  return `<h3>Team captains</h3>
+    <p class="hint">Log in with the 6-digit passcode the organiser sent you to submit your team's line-ups.</p>
+    ${capErr?`<div class="alert bad" style="margin-top:10px"><span>⚠</span><span>${esc(capErr)}</span></div>`:''}
+    <label class="fl">Your team</label>
+    <select id="capTeam">${S.teams.map(t=>`<option value="${t.id}" ${t.id===pre?'selected':''}>${esc(t.name)} · ${esc(captainOf(t))}</option>`).join('')}</select>
+    <label class="fl">Captain passcode</label>
+    <input type="password" id="capIn" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')tryCapLogin()">
+    <div class="row" style="margin-top:12px"><button class="btn acc" style="flex:1" onclick="tryCapLogin()">Log in as captain</button></div>
+    <div class="bSep"></div>
+    <h3>Unlock this device</h3>
     <p class="hint">Enter your PIN — referee or organiser — or the admin password.</p>
     ${err?`<div class="alert bad" style="margin-top:10px"><span>⚠</span><span>${esc(err)}</span></div>`:''}
     <label class="fl">PIN or password</label>
@@ -895,9 +938,19 @@ function accessModal(err){
       <b>Organiser</b> also edits teams, prints and shares results.<br>
       <b>Admin</b> also sets up the event, the passwords and who sees what.</span></div>`;
 }
+async function tryCapLogin(code,tid){
+  tid=tid||((document.getElementById('capTeam')||{}).value); code=String(code!=null?code:((document.getElementById('capIn')||{}).value||'')).trim();
+  if(!tid||!code) return;
+  if(!S.capHash||!S.capHash[tid]){ if(sync.on) await syncPull(true); }
+  if(!S.capHash||!S.capHash[tid]){ accessModal.team=tid; openModal(accessModal('','Captain passcodes have not been set up yet. Ask the organiser.')); return; }
+  if(await hashPin('cap|'+tid+'|'+code)!==S.capHash[tid]){ accessModal.team=tid; openModal(accessModal('','That passcode is not right for '+teamById(tid).name+'.')); return; }
+  S.role='captain'; S.capTeam=tid; S.tab='lineups'; S.ref=null; save(); closeModal(); closeRef(); render(); toast('Logged in as captain of '+teamById(tid).name);
+}
+let ADMIN_PW=null; try{ ADMIN_PW=sessionStorage.getItem('ptme2_apw'); }catch(e){}
+function rememberAdminPw(v){ ADMIN_PW=v; try{ sessionStorage.setItem('ptme2_apw',v); }catch(e){} CODES=null; }
 async function tryAccess(){
   const v=document.getElementById('accIn').value; if(!v) return;
-  if(await adminMatches(v)){ S.role='admin'; if(!S.adminHash) S.adminHash=await hashPin(v);
+  if(await adminMatches(v)){ S.role='admin'; rememberAdminPw(v); if(!S.adminHash) S.adminHash=await hashPin(v);
     save(); closeModal(); render(); toast('Admin mode — full control'); if(sync.on) drainQueue(6); return; }
   const h=await hashPin(v);
   if(orgPinSet()&&h===S.orgHash){ S.role='organiser'; save(); closeModal(); render(); toast('Organiser mode'); return; }
@@ -920,6 +973,10 @@ function pinBlock(kind){
       ${set?`<button class="btn dgr" onclick="clearPin('${kind}')">Remove PIN</button>`:''}</div>`;
 }
 function signedInModal(){
+  if(isCaptain()) return `<h3>Captain · ${esc(teamById(S.capTeam).name)}</h3>
+    <p class="hint">This device can submit ${esc(teamById(S.capTeam).name)}'s line-ups. It can't enter scores.</p>
+    <div class="row" style="margin-top:16px"><button class="btn" style="flex:1" onclick="signOut()">Log out</button>
+      <button class="btn acc" onclick="closeModal()">Done</button></div>`;
   return `<h3>${ROLE_LABEL[S.role]} mode</h3><p class="hint">${roleBlurb()}</p>
     ${isAdmin()?`${pinBlock('org')}${pinBlock('ref')}
       <p class="hint">The two PINs must be different. Who sees which tab is set in Setup → Access.</p>
@@ -953,9 +1010,10 @@ async function changeAdmin(){
   if(!await adminMatches(document.getElementById('ap0').value||'')) return toast('The current password is not right');
   const a=document.getElementById('ap1').value||'', b=document.getElementById('ap2').value||'';
   if(a.length<6) return toast('Use at least 6 characters'); if(a!==b) return toast('The two new passwords do not match');
-  S.adminHash=await hashPin(a); save(); toast('Admin password changed'); if(sync.on) drainQueue(6); openModal(signedInModal());
+  const codes=await getCodes(); S.adminHash=await hashPin(a); rememberAdminPw(a); if(codes){ S.capBox=await boxEnc(codes,a); CODES=codes; }
+  save(); toast('Admin password changed'); if(sync.on) drainQueue(6); openModal(signedInModal());
 }
-function signOut(){ S.role='view'; S.ref=null; S.editTeams=false; save(); closeModal(); closeRef(); render(); toast('This device is view only'); }
+function signOut(){ S.role='view'; S.capTeam=null; S.ref=null; S.editTeams=false; ADMIN_PW=null; CODES=null; try{sessionStorage.removeItem('ptme2_apw');}catch(e){} save(); closeModal(); closeRef(); render(); toast('This device is view only'); }
 
 /* ===================== theme, title ===================== */
 function applyTheme(){ document.documentElement.setAttribute('data-theme',S.theme); }
@@ -967,6 +1025,7 @@ function applyDocTitle(){
 
 /* ===================== render ===================== */
 function TABS(){
+  if(isCaptain()){ const on=ACCESS().tabs.view; return [['lineups','My line-ups']].concat(TAB_LIST.filter(([k])=>on[k]&&k!=='data')); }
   if(isAdmin()){ const t=TAB_LIST.filter(([k])=>k!=='data'); t.push(['setup','Setup'],['data','Data']); return t; }
   const on=ACCESS().tabs[S.role]||ACCESS().tabs.view;
   const t=TAB_LIST.filter(([k])=>on[k]); return t.length?t:[['matches','Matches']];
@@ -976,12 +1035,24 @@ function render(){
   applyTheme(); refresh(); applyDocTitle();
   if(TABS().map(t=>t[0]).indexOf(S.tab)<0) S.tab=TABS()[0][0];
   quietSave(); if(typeof syncScan==='function') syncScan();
-  const views={courts:vLive,matches:vMatches,table:vTable,finals:vFinals,stats:vStats,teams:vTeams,rules:vRules,setup:vSetup,data:vData};
+  const views={lineups:vLineups,courts:vLive,matches:vMatches,table:vTable,finals:vFinals,stats:vStats,teams:vTeams,rules:vRules,setup:vSetup,data:vData};
   document.getElementById('wrap').innerHTML=headerHTML()+views[S.tab]()+footerHTML();
   document.getElementById('nav').innerHTML=TABS().map(([k,l])=>`<button class="${S.tab===k?'on':''}" onclick="go('${k}')">${l}</button>`).join('');
   syncChrome(); putFocus(keep);
 }
 function go(t){ S.tab=t; render(); window.scrollTo(0,0); }
+/* Changes arriving from other phones redraw the screen. If a list or a text
+   box is open at that moment the redraw would close it (the player list
+   vanishing on the first tap), so the redraw waits until the field is let go. */
+function fieldBusy(){ const a=document.activeElement;
+  return !!(a&&a!==document.body&&(a.tagName==='SELECT'||a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&!/^(button|checkbox|radio|file|submit)$/i.test(a.type)))); }
+let bgPending=false;
+function bgRender(){
+  if(document.querySelector('input.sc:focus')){ scoreDirty=true; return; }
+  if(fieldBusy()){ bgPending=true; return; }
+  bgPending=false; if(S.ref) renderRef(); if(!modalOpen) render();
+}
+document.addEventListener('focusout',()=>setTimeout(()=>{ if(bgPending&&!fieldBusy()) bgRender(); },300));
 function headerHTML(){
   return `<header>
     <div class="brand"><div class="leadMarks">${leadMarks().map(o=>orgImg(o)).join('')}</div>
@@ -990,7 +1061,7 @@ function headerHTML(){
         ${organiserLine()?`<div class="byOrg">Organised by ${esc(organiserLine())}</div>`:''}</div></div>
     <div class="hdr-tools">
       <div class="sync ${sync.status}" id="syncpill" onclick="openModal(syncModal())">${syncPillHTML()}</div>
-      <button class="modebtn ${canScore()?'on':''}" onclick="openAccess()">${roleName()}${S.role==='view'?' 🔒':''}</button>
+      <button class="modebtn ${canScore()||isCaptain()?'on':''}" onclick="openAccess()">${roleName()}${isCaptain()?' · '+esc(teamById(S.capTeam).name):''}${S.role==='view'?' 🔒':''}</button>
       <button class="iconbtn" title="Light or dark" onclick="toggleTheme()">${S.theme==='dark'?'☾':'☀'}</button>
     </div></header>
   <div class="pills" style="margin:-4px 0 14px">${pillsHTML()}</div>`;
@@ -1043,7 +1114,8 @@ function vLive(){
       const pair=t=>{const sl=cs.slot[t.id], lu=m.lineup[t.id];
         return `<b>${esc(pName(lu[sl.R]))}</b> & <b>${esc(pName(lu[sl.L]))}</b>`;};
       on=`<div class="ccOn">On court (${pairLabel(s.c)}): ${pair(A)} v ${pair(B)}<br>Next substitution at ${nextGateAt(s.c)} combined</div>`;
-    } else if(!started(m)) on=`<div class="ccOn">${lineupReady(m)?'Line-ups declared · ready to start':'Waiting for line-ups'}</div>`;
+    } else if(!started(m)){ const n=[m.a,m.b].filter(t=>subOf(m,t)).length;
+      on=`<div class="ccOn">${lineupReady(m)?'Line-ups declared · ready to start':n===1?'🔒 1 of 2 captains has submitted':'Waiting for line-ups'}</div>`; }
     return `<div class="card ccard ${live?'live':''}" onclick="openRef('${m.id}')">
       <div class="ccTop"><span class="ccName">${esc(nm)}</span>
         <span class="stchip ${live?'st-live':started(m)?'st-done':'st-wait'}">${live?'● Live':started(m)?'Score in':'Up next'} · ${esc(matchTitle(m))}</span></div>
@@ -1059,9 +1131,9 @@ function vLive(){
 function modeBar(){
   if(!canScore()) return '';
   return `<div class="row" style="margin-bottom:12px;align-items:center">
-    <button class="chip ${S.mode==='ref'?'on':''}" onclick="S.mode='ref';quietSave();render()">🏓 Court console</button>
     <button class="chip ${S.mode==='entry'?'on':''}" onclick="S.mode='entry';quietSave();render()">⌨ Type final scores</button>
-    <span class="note">${S.mode==='entry'?'For a match not scored live: type the final score. Tab or Enter moves on.'
+    <button class="chip ${S.mode==='ref'?'on':''}" onclick="S.mode='ref';quietSave();render()">🏓 Court console</button>
+    <span class="note">${S.mode==='entry'?'Type each final score — Tab or Enter moves on. To score a match rally by rally, use its Console button.'
       :'Tap a match to declare line-ups and score it rally by rally.'}</span></div>`;
 }
 function oddBanner(){
@@ -1084,7 +1156,10 @@ function matchRow(m){
   let btn='';
   if(has&&canScore()&&S.mode==='ref') btn=`<button class="refbtn ${isLive(m)?'go':''}" onclick="event.stopPropagation();openRef('${m.id}')">${
     isOver(m)?'VIEW':isLive(m)?'RESUME':lineupReady(m)?'SCORE':'LINE-UPS'}</button>`;
-  return `<div class="mrow" ${has?`onclick="openRef('${m.id}')"`:''}>
+  else if(has&&canScore()) btn=`<button class="refbtn ${isLive(m)?'go':''}" tabindex="-1" title="Score this match rally by rally" onclick="event.stopPropagation();openRef('${m.id}')">${
+    isLive(m)?'● LIVE':hasLog(m)?'CONSOLE':'CONSOLE'}</button>`;
+  const rowClick=has&&!(canScore()&&S.mode==='entry');
+  return `<div class="mrow" ${rowClick?`onclick="openRef('${m.id}')"`:'style="cursor:default"'}>
     <div class="mno"><span>${m.stage==='league'?'R'+m.round:m.stage==='final'?'FINAL':'BRONZE'}</span><span class="ctTag">${esc(courtName(m.c))}</span>
       ${odd?'<span class="oddsc" title="Not a finished game">⚠</span>':''}</div>
     <div class="side ${win?(win===m.a?'w':'l'):''}">${isLive(m)?'<span class="liveDot">●</span>':''}${teamTag(A)}</div>
@@ -1107,20 +1182,23 @@ function vMatches(){
 function standingsCard(){
   const st=standings();
   return `<div class="card"><div class="hd"><b>League table</b><span>${leagueDone()?'Final':'Live'} · ${leaguePlayed()} of ${LEAGUE().length} played</span></div>
-  <div class="tblWrap"><table class="tbl"><thead><tr><th>#</th><th class="l">Team</th><th>P</th><th>W-L</th><th>Points</th><th>PA</th><th>+/-</th></tr></thead><tbody>
+  <div class="tblWrap"><table class="tbl"><thead><tr><th>#</th><th class="l">Team</th><th>P</th><th>Won</th><th>Lost</th><th>+/-</th><th>Pts won</th><th>Pts lost</th></tr></thead><tbody>
   ${st.map(r=>{ const q=r.rank<=2?'f':r.rank<=4?'b':'';
     return `<tr><td><span class="rk ${q}">${r.rank}</span></td>
       <td class="l"><span class="tname"><span class="tdot" style="background:${r.team.hex}"></span><span>${esc(r.team.name)}${
         q?`<span class="qtag ${q}">${q==='f'?'FINAL':'BRONZE'}</span>`:''}<small>${esc(r.team.code)} · ${esc(captainOf(r.team))}</small></span></span></td>
-      <td>${r.p}</td><td><b style="color:var(--mintInk)">${r.w}</b><span style="color:var(--dim)">-${r.l}</span></td>
-      <td><span class="pts">${r.pf}</span></td><td style="color:var(--muted)">${r.pa}</td>
-      <td class="${r.diff>0?'pos':r.diff<0?'neg':''}">${r.diff>0?'+':''}${r.diff}</td></tr>`; }).join('')}
+      <td>${r.p}</td><td><span class="pts">${r.w}</span></td><td style="color:var(--muted)">${r.l}</td>
+      <td class="${r.diff>0?'pos':r.diff<0?'neg':''}">${r.diff>0?'+':''}${r.diff}</td>
+      <td>${r.pf}</td><td style="color:var(--muted)">${r.pa}</td></tr>`; }).join('')}
   </tbody></table></div></div>`;
 }
 function vTable(){
   return exportBar('table')+standingsCard()+`<div class="card ed" style="margin-top:12px"><div class="rule-block" style="margin:0"><h3>How teams qualify</h3><ul>
-    <li>All ${S.teams.length} teams are ranked in <b>one table</b> on <b>total points scored</b> across their ${SCHEDULE.length} matches.</li>
-    <li>If level: <b>point difference</b>, then <b>wins</b>, then <b>head-to-head</b> if the two teams met.</li>
+    <li>All ${S.teams.length} teams are ranked in <b>one table</b> across their ${SCHEDULE.length} matches, in this order:
+      <ol style="margin:4px 0 2px;padding-left:20px"><li><b>Wins</b></li><li><b>Point difference</b> (points won minus points lost)</li>
+      <li><b>Head-to-head</b>: if two teams are still level and they played each other, the winner of that match goes higher</li>
+      <li><b>Total points won</b></li><li><b>Fewest points conceded</b></li></ol>
+      If three or more teams are level after step 2, head-to-head is skipped and steps 4 and 5 decide.</li>
     <li><b>1st and 2nd</b> play the <b>Final</b> 🏆 · <b>3rd and 4th</b> play for the <b>Bronze medal</b> 🥉</li>
     <li>Points from a match still being played count straight away, so the table moves live.</li></ul></div></div>`;
 }
@@ -1183,11 +1261,13 @@ function vStats(){
 }
 
 /* ---------- Teams ---------- */
+const POOL_OPTS=['C','M','A1','G','A2'];
 function vTeams(){
   const ed=S.editTeams&&canEditTeams();
   let h=exportBar('teams')+`<div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
-    <p class="note" style="margin:0">${S.teams.length} teams of ${SQUAD}: a captain, one from Pool M, one from A1, one from Pool G and two from A2.</p>
-    ${canEditTeams()?`<button class="btn sm ${ed?'acc':''}" onclick="S.editTeams=!S.editTeams;render()">${ed?'✓ Done':'✎ Edit names'}</button>`:''}</div>
+    <p class="note" style="margin:0">${ed?'Change any name, pool or the captain 👑 — every change saves straight away and goes to the other phones.'
+      :`${S.teams.length} teams of ${SQUAD}: a captain, one from Pool M, one from A1, one from Pool G and two from A2.`}</p>
+    ${canEditTeams()?`<button class="btn ${ed?'acc':''}" onclick="S.editTeams=!S.editTeams;render()">${ed?'✓ Done editing':'✎ Edit teams & players'}</button>`:''}</div>
   <div class="grid g2">`;
   S.teams.forEach(t=>{
     h+=`<div class="card rcard"><div class="rhead"><span class="tdot" style="background:${t.hex};width:14px;height:14px"></span>
@@ -1195,8 +1275,11 @@ function vTeams(){
         :`<div class="tn">${esc(t.name)}</div>`}
       <div class="note" style="font-size:11px">${esc(t.code)} · captain ${esc(captainOf(t))}</div></div>
       ${canExport()&&!ed?`<button class="btn sm" title="Print this team's line-up slips" onclick="doPrint('tslips',false,'${t.id}')">🖨 Slips</button>`:''}</div>
-      ${t.players.map(p=>`<div class="rrow"><span class="pool ${p.pool}">${p.pool}</span>${ed?`<input class="txt" value="${attr(p.name)}" onchange="setPlayerName('${p.id}',this.value)">`
-        :`<span class="nm">${esc(p.name)}</span>`}</div>`).join('')}</div>`;
+      ${t.players.map(p=>{ const cap=captainP(t)===p;
+        return ed?`<div class="rrow"><select class="txt" style="flex:none;width:64px;height:34px;padding:0 4px" onchange="setPool('${p.id}',this.value)">${POOL_OPTS.map(o=>`<option ${o===p.pool?'selected':''}>${o}</option>`).join('')}</select>
+          <input class="txt" style="height:34px" value="${attr(p.name)}" onchange="setPlayerName('${p.id}',this.value)">
+          <label class="capPick ${cap?'on':''}" title="Make captain"><input type="radio" name="cap_${t.id}" ${cap?'checked':''} onchange="setCaptain('${t.id}','${p.id}')">👑</label></div>`
+        :`<div class="rrow"><span class="pool ${p.pool}">${p.pool}</span><span class="nm">${esc(p.name)}${cap?' 👑':''}</span></div>`; }).join('')}</div>`;
   });
   h+=`</div>`;
   if(ed) h+=`<div class="row" style="margin-top:12px"><button class="btn dgr sm" onclick="restoreRoster()">Restore the original roster</button></div>
@@ -1207,9 +1290,14 @@ function setTeamName(id,v){ if(!canEditTeams()) return; const t=teamById(id); v=
   t.name=v; save(); render(); toast('Saved'); }
 function setPlayerName(id,v){ if(!canEditTeams()) return; const p=playerById(id); v=(v||'').trim(); if(!p||!v) return render();
   p.name=v; save(); render(); toast('Saved'); }
+function setPool(id,v){ if(!canEditTeams()) return; const p=playerById(id); if(!p||POOL_OPTS.indexOf(v)<0) return; p.pool=v; save(); render(); toast('Saved'); }
+function setCaptain(tid,pid){ if(!canEditTeams()) return; const t=teamById(tid), p=playerById(pid); if(!t||!p) return;
+  const old=captainP(t); t.cap=pid;
+  if(old&&old!==p&&old.pool==='C'&&p.pool!=='C'){ old.pool=p.pool; p.pool='C'; }
+  save(); render(); toast(p.name+' is now captain of '+t.name); }
 function restoreRoster(){ if(!canEditTeams()) return;
-  if(!confirm('Put every team and player name back to the original roster sheet?')) return;
-  const f=freshTeams(); S.teams.forEach((t,i)=>{ t.name=f[i].name; t.players.forEach((p,j)=>{p.name=f[i].players[j].name;}); });
+  if(!confirm('Put every team name, player name, pool and captain back to the original roster sheet?')) return;
+  const f=freshTeams(); S.teams.forEach((t,i)=>{ t.name=f[i].name; t.cap=null; t.players.forEach((p,j)=>{p.name=f[i].players[j].name; p.pool=f[i].players[j].pool;}); });
   save(); render(); toast('Roster restored'); }
 
 /* ---------- Rules ---------- */
@@ -1219,7 +1307,7 @@ function vRules(){
   <div class="rule-block"><h3>📋 Match format</h3><ul>
     <li>${S.teams.length} teams. <b>Each team plays ${SCHEDULE.length} matches.</b></li>
     <li><b>Top 2</b> teams qualify for the <b>Final</b> 🏆 · <b>3rd & 4th</b> play for the <b>Bronze medal</b> 🥉</li>
-    <li>Teams are ranked on <b>total points scored</b>, then point difference, then wins.</li>
+    <li>Teams are ranked on <b>wins</b>, then <b>point difference</b>, then <b>head-to-head</b> (two teams level that met), then <b>total points won</b>, then <b>fewest points conceded</b>.</li>
     <li>Matches use <b>rally scoring</b> — every rally scores. <b>First team to ${TARGET} wins.</b></li>
     <li>At <b>${GOLDEN}–${GOLDEN}</b> the match is decided by a <b>Golden Point</b>.</li>
     ${SWITCH_AT?`<li>Teams <b>change ends</b> when one team reaches <b>${SWITCH_AT}</b>.</li>`:''}</ul></div>
@@ -1273,13 +1361,107 @@ function viewNoLineup(m){
 }
 const stripTeam=(t,n,right)=>`<div class="sTeam ${right?'right':''}"><div class="stripe" style="background:${t.hex}"></div>
   <div class="nm2">${esc(t.name)}</div><div class="num" style="color:${tcol(t)}">${n}</div></div>`;
+/* ---------- captains' sealed line-ups ----------
+   A captain's submission is stored per match and team. Nobody's screen shows
+   it until the other team of that match has submitted too; then both copy
+   into the match line-ups for the referee and the court console. This is
+   hidden in the app only — the data itself is lightly scrambled, not
+   locked away on a server. */
+function luKey(mid,tid){ return 'ptme2|'+mid+'|'+tid; }
+function luEnc(mid,tid,arr){ const s=JSON.stringify(arr), k=luKey(mid,tid); let o='';
+  for(let i=0;i<s.length;i++) o+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length)); return btoa(o); }
+function luDec(mid,tid,enc){ try{ const s=atob(enc), k=luKey(mid,tid); let o='';
+  for(let i=0;i<s.length;i++) o+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length));
+  const a=JSON.parse(o); return Array.isArray(a)&&a.length===SQUAD?a:null; }catch(e){ return null; } }
+const subOf=(m,tid)=>{ const r=S.subs&&S.subs[m.id]&&S.subs[m.id][tid]; return r&&r.enc?r:null; };
+const bothIn=m=>!!(m.a&&m.b&&subOf(m,m.a)&&subOf(m,m.b));
+const sealState=(m,tid)=>!subOf(m,tid)?'none':bothIn(m)?'open':'sealed';
+function putSub(m,tid,arr,by){ S.subs=S.subs||{}; S.subs[m.id]=S.subs[m.id]||{};
+  S.subs[m.id][tid]=arr?{enc:luEnc(m.id,tid,arr),at:Date.now(),by:by||''}:{enc:null,at:Date.now(),by:by||''}; }
+function revealSubs(){
+  S.matches.forEach(m=>{ if(!bothIn(m)||hasLog(m)) return;
+    [m.a,m.b].forEach(t=>{ const lu=luDec(m.id,t,subOf(m,t).enc);
+      if(lu&&JSON.stringify((m.lineup||{})[t])!==JSON.stringify(lu)){ m.lineup=m.lineup||{}; m.lineup[t]=lu; } }); });
+}
+function validLU(tid,arr){ if(!arr||arr.length!==SQUAD||arr.some(x=>!x)) return 'Pick a player for every slot, A1 to A6.';
+  if(new Set(arr).size!==SQUAD) return 'Each player can only appear once.';
+  const t=teamById(tid); if(arr.some(id=>!t.players.find(p=>p.id===id))) return 'Only players from this team can be picked.'; return ''; }
+const poss=n=>esc(n)+(/s$/i.test(String(n))?"'":"'s");
+const orderHTML=(arr)=>`<div class="luOrder">${arr.map((id,i)=>`<span><i>A${i+1}</i>${esc(pName(id))}</span>`).join('')}</div>`;
+const DRAFT={};
+function draftOf(key,init){ if(!DRAFT[key]) DRAFT[key]=(init||[null,null,null,null,null,null]).slice(); return DRAFT[key]; }
+function draftSet(key,slot,v,rerender){ const d=DRAFT[key]; if(!d) return; d[slot]=v||null; rerender(); }
+function draftSelects(key,tid,rer){
+  const t=teamById(tid), cur=DRAFT[key]; let h='';
+  for(let i=0;i<SQUAD;i++){ const used=cur.filter((x,j)=>x&&j!==i);
+    h+=`<div class="lu-row"><span class="lu-slot">A${i+1}</span><select class="txt" onchange="draftSet('${key}',${i},this.value,${rer})">
+      <option value="">— pick player —</option>${t.players.map(p=>`<option value="${p.id}" ${cur[i]===p.id?'selected':''} ${used.indexOf(p.id)>=0?'disabled':''}>${esc(p.name)} · ${p.pool}</option>`).join('')}</select></div>`; }
+  return h;
+}
+function capMatches(tid){
+  return S.matches.filter(m=>m.a===tid||m.b===tid).sort((x,y)=>x.round-y.round||(x.stage==='final'?-1:1));
+}
+function vLineups(){
+  if(!isCaptain()) return '<p class="note">Log in as a captain to submit line-ups.</p>';
+  const T=teamById(S.capTeam), ms=capMatches(T.id);
+  let h=`<div class="card ed" style="margin-bottom:12px"><div class="hd" style="padding:0 0 4px"><b>${esc(T.name)} · line-ups</b><span>Captain ${esc(captainOf(T))}</span></div>
+    <p class="note" style="margin:0">Submit your order <b>A1–A6</b> for each match before it starts. It stays <b>hidden from the other team until they have submitted too</b>.
+    Once you submit, it <b>can't be changed</b> — ask the organiser if you made a genuine mistake.</p></div>`;
+  ms.forEach(m=>{
+    const opp=teamById(m.a===T.id?m.b:m.a), mine=subOf(m,T.id), theirs=subOf(m,opp.id), key='cap:'+m.id;
+    const pending=!!sync.dirty[K('lu:'+m.id+':'+T.id)];
+    const chip=(ok,txt)=>`<span class="stchip ${ok?'st-live':'st-wait'}">${ok?'✓':'○'} ${txt}</span>`;
+    h+=`<div class="card luCard"><div class="luHead"><b>${esc(matchTitle(m))}</b><span class="dimtxt">${esc(courtName(m.c))} · v <b style="font:700 12.5px Outfit;text-transform:none">${esc(opp.name)}</b> (Capt. ${esc(captainOf(opp))})</span></div>
+      <div class="luSt">${chip(!!mine,mine?(pending?'You submitted · sending…':'You submitted'):'You have not submitted')}${chip(!!theirs,theirs?opp.name+' submitted':opp.name+' not yet')}</div>`;
+    if(mine){
+      const own=luDec(m.id,T.id,mine.enc);
+      h+=`<div class="eyebrow" style="margin-bottom:5px">Your order</div>${own?orderHTML(own):''}`;
+      if(theirs){ const o=luDec(m.id,opp.id,theirs.enc); h+=`<div class="eyebrow" style="margin:10px 0 5px">${poss(opp.name)} order</div>${o?orderHTML(o):''}`; }
+      else h+=`<div class="sealBox" style="margin-top:10px">🔒 ${poss(opp.name)} order appears here once they submit. Yours stays hidden from them until then.</div>`;
+    } else if(started(m)) h+=`<div class="sealBox">This match has already started.</div>`;
+    else { draftOf(key);
+      h+=draftSelects(key,T.id,'renderMain')+`<div class="row" style="margin-top:10px"><button class="btn acc" style="flex:1" onclick="submitCap('${m.id}')">Submit line-up for ${esc(matchTitle(m))}</button></div>`; }
+    h+=`</div>`;
+  });
+  if(!ms.some(m=>m.stage!=='league')) h+=`<p class="note">Finish in the top four and your Final or Bronze match appears here once the league is over.</p>`;
+  return h;
+}
+function renderMain(){ render(); }
+function submitCap(mid){
+  if(!isCaptain()) return; const m=matchById(mid), tid=S.capTeam; if(!m||subOf(m,tid)) return;
+  if(started(m)) return toast('This match has already started');
+  const arr=DRAFT['cap:'+mid], bad=validLU(tid,arr); if(bad) return toast(bad);
+  const opp=teamById(m.a===tid?m.b:m.a);
+  if(!confirm('Submit this order for '+matchTitle(m)+' v '+opp.name+'?\n\n'+arr.map((id,i)=>'A'+(i+1)+'  '+pName(id)).join('\n')+'\n\nOnce submitted it cannot be changed.')) return;
+  putSub(m,tid,arr,'captain'); delete DRAFT['cap:'+mid]; save(); render(); toast('Submitted — hidden from '+opp.name+' until they submit');
+  if(sync.on) drainQueue(6).then(()=>render());
+}
+function submitBehalf(mid,tid){
+  if(!canScore()) return; const m=matchById(mid); if(!m||subOf(m,tid)||hasLog(m)) return;
+  const arr=DRAFT['ref:'+mid+':'+tid], bad=validLU(tid,arr); if(bad) return toast(bad);
+  if(!confirm('Submit this order for '+teamById(tid).name+' on the captain\'s behalf? It cannot be changed afterwards.')) return;
+  putSub(m,tid,arr,'referee'); delete DRAFT['ref:'+mid+':'+tid]; refresh(); save(); renderRef(); toast('Submitted — both line-ups are now open');
+}
+function reopenSub(mid,tid){
+  if(!isAdmin()) return; const m=matchById(mid); if(!m||!subOf(m,tid)) return;
+  if(hasLog(m)) return toast('This match is already being scored — reset its score first');
+  if(!confirm('Reopen '+teamById(tid).name+' line-up for '+matchWhere(m)+'? Their captain can submit again.'+(bothIn(m)?'\n\nBoth orders have already been revealed to everyone.':''))) return;
+  putSub(m,tid,null,'reopen'); m.lineup={}; save(); render(); toast('Reopened'); if(sync.on) drainQueue(6);
+}
 function lineupEditor(m){
   let h=`<p class="note">Enter each team's order <b>A1–A6</b>. Captains swap sheets before the match; once the first point is scored the order is locked.</p>`;
   if(typedBoth(m)) h+=`<div class="alert warn"><span>⚠</span><span>This match has a typed score of ${m.fs.a}–${m.fs.b}. Scoring it on the console will replace that.</span></div>`;
+  const anySub=!!(subOf(m,m.a)||subOf(m,m.b));
   [m.a,m.b].forEach(tid=>{
-    const t=teamById(tid), cur=(m.lineup&&m.lineup[tid])||[null,null,null,null,null,null];
+    const t=teamById(tid), other=teamById(tid===m.a?m.b:m.a), cur=(m.lineup&&m.lineup[tid])||[null,null,null,null,null,null];
     h+=`<div class="card ed" style="margin-bottom:12px"><div class="row" style="align-items:center;margin-bottom:6px">
       <span class="tdot" style="background:${t.hex}"></span><span class="anton" style="font-size:18px;text-transform:uppercase">${esc(t.name)}</span></div>`;
+    const st=sealState(m,tid);
+    if(st==='sealed'){ h+=`<div class="sealBox">🔒 The captain has submitted. Sealed until ${poss(other.name)} line-up is in — from their captain, or entered below from their paper slip.</div></div>`; return; }
+    if(st==='open'){ h+=`<p class="note" style="margin:0 0 6px">From the captain's submission.</p>${orderHTML(m.lineup[tid]||luDec(m.id,tid,subOf(m,tid).enc)||[])}</div>`; return; }
+    if(anySub){ const key='ref:'+m.id+':'+tid; draftOf(key,cur);
+      h+=`<p class="note" style="margin:0 0 6px">The captain hasn't submitted. Enter the order from their paper slip:</p>${draftSelects(key,tid,'renderRef')}
+        <div class="row" style="margin-top:10px"><button class="btn acc" onclick="submitBehalf('${m.id}','${tid}')">Submit for ${esc(t.name)}</button></div></div>`; return; }
     for(let i=0;i<SQUAD;i++){
       const used=cur.filter((x,j)=>x&&j!==i);
       h+=`<div class="lu-row"><span class="lu-slot">A${i+1}</span><select class="txt" onchange="setLU('${m.id}','${tid}',${i},this.value)">
@@ -1295,12 +1477,12 @@ function lineupEditor(m){
   else h+=`<p class="note">Not scoring this one live? Close this and type the final score on the Matches tab instead.</p>`;
   return h;
 }
-function setLU(mid,tid,slot,v){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()) return;
+function setLU(mid,tid,slot,v){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()||subOf(m,tid)) return;
   m.lineup=m.lineup||{}; if(!m.lineup[tid]) m.lineup[tid]=[null,null,null,null,null,null];
   m.lineup[tid][slot]=v||null; if(lineupReady(m)) S.luEdit=m.id; save(); renderRef(); }
-function autoLU(mid,tid){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()) return;
+function autoLU(mid,tid){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()||subOf(m,tid)) return;
   m.lineup=m.lineup||{}; m.lineup[tid]=teamById(tid).players.map(p=>p.id); if(lineupReady(m)) S.luEdit=m.id; save(); renderRef(); }
-function clearLU(mid,tid){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()) return;
+function clearLU(mid,tid){ const m=matchById(mid); if(!m||hasLog(m)||!canScore()||subOf(m,tid)) return;
   m.lineup=m.lineup||{}; m.lineup[tid]=[null,null,null,null,null,null]; save(); renderRef(); }
 
 function cbox(m,t,pos,cs,c,locked){
@@ -1508,7 +1690,62 @@ function addPeek(){
 /* ===================== Setup (admin) ===================== */
 function vSetup(){
   return `<p class="note">Everything here syncs to the other devices within a few seconds.</p>`
-    +setupEvent()+setupRules()+setupCourts()+setupAccess()+setupOrgs()+setupPreview();
+    +setupCaptains()+setupEvent()+setupRules()+setupCourts()+setupAccess()+setupOrgs()+setupPreview();
+}
+/* ---------- captain passcodes ----------
+   Each team gets a 6-digit passcode. Every phone keeps only a fingerprint of it
+   (enough to check a login); the codes themselves travel scrambled with the
+   admin password, so any device where the admin is logged in can show them. */
+let CODES=null;
+async function boxKey(pw){ return await hashPin('capbox|'+pw); }
+async function boxEnc(obj,pw){ const s=JSON.stringify(obj), k=await boxKey(pw); let o='';
+  for(let i=0;i<s.length;i++) o+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length)); return btoa(o); }
+async function boxDec(b,pw){ try{ const s=atob(b), k=await boxKey(pw); let o='';
+  for(let i=0;i<s.length;i++) o+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length)); return JSON.parse(o); }catch(e){ return null; } }
+async function getCodes(){ if(CODES) return CODES; if(!ADMIN_PW||!S.capBox) return null; CODES=await boxDec(S.capBox,ADMIN_PW); return CODES; }
+function newCode(used){ let c; do{ c=String(100000+Math.floor(Math.random()*900000)); }while(used.indexOf(c)>=0); return c; }
+async function genCodes(only){
+  if(!isAdmin()||!ADMIN_PW) return toast('Log in with the admin password on this device first');
+  const cur=(await getCodes())||{};
+  if(!only&&Object.keys(cur).length&&!confirm('Make new passcodes for every team? The old ones stop working — you will need to send the new ones.')) return;
+  const codes=Object.assign({},cur), used=Object.values(codes);
+  (only?[only]:S.teams.map(t=>t.id)).forEach(tid=>{ const c=newCode(used); used.push(c); codes[tid]=c; });
+  S.capHash=S.capHash||{};
+  for(const tid of Object.keys(codes)) S.capHash[tid]=await hashPin('cap|'+tid+'|'+codes[tid]);
+  S.capBox=await boxEnc(codes,ADMIN_PW); CODES=codes; save(); render(); toast(only?'New passcode for '+teamById(only).name:'Passcodes ready'); if(sync.on) drainQueue(6);
+}
+async function unlockCodes(){ const v=(document.getElementById('cpw')||{}).value||''; if(!v) return;
+  if(!await adminMatches(v)) return toast('The admin password is not right'); rememberAdminPw(v);
+  if(S.capBox&&!(await getCodes())) return toast('These passcodes were made with an older admin password — make new ones');
+  render(); }
+const capLink=(tid,code)=>location.origin+location.pathname+'?team='+tid+'&k='+code;
+function capMessage(tid,code){ const t=teamById(tid);
+  return `🏓 *${S.meta.title}*\n${S.meta.sub}\n\nHi ${captainOf(t)}! You're captain of *${t.name}*.\nSubmit your A1–A6 line-up for each match here:\n${capLink(tid,code)}\n\n🔑 Passcode: *${code}*\n\nKeep it private — it lets you submit for your team. Your order stays hidden from the other team until they have submitted too, and once you submit it can't be changed.`+(eventPhone()?`\n📞 Questions: ${eventPhone()}`:''); }
+function shareCode(tid){ const c=CODES&&CODES[tid]; if(!c) return; window.open('https://wa.me/?text='+encodeURIComponent(capMessage(tid,c)),'_blank'); }
+function setupCaptains(){
+  const have=S.capHash&&Object.keys(S.capHash).length, codes=CODES;
+  if(have&&!codes&&ADMIN_PW&&S.capBox){ getCodes().then(c=>{ if(c) render(); }); }
+  let h=`<div class="card ed" style="margin-bottom:12px"><div class="hd" style="padding:0 0 6px"><b>Captains · line-up submissions</b><span>hidden until both teams submit</span></div>
+    <p class="note">Each captain logs in with their team's passcode and submits A1–A6 for every match. A submitted order is hidden from every screen until the other team of that match has submitted too, then both fill in for the referee. Once submitted it is locked; you can reopen one below.</p>`;
+  if(!ADMIN_PW) h+=`<div class="alert warn"><span>🔑</span><span>Type the admin password to ${have?'see and send the passcodes':'make passcodes'}.</span></div>
+    <div class="row"><input type="password" id="cpw" class="txt" placeholder="Admin password" onkeydown="if(event.key==='Enter')unlockCodes()"><button class="btn acc" onclick="unlockCodes()">Show</button></div>`;
+  else if(!have) h+=`<button class="btn acc" onclick="genCodes()">Make passcodes for all ${S.teams.length} captains</button>`;
+  else{
+    h+=`<div class="tblWrap" style="padding:0"><table class="tbl"><thead><tr><th class="l">Team</th><th class="l">Captain</th><th>Passcode</th><th></th></tr></thead><tbody>
+      ${S.teams.map(t=>`<tr><td class="l"><span class="tname"><span class="tdot" style="background:${t.hex}"></span>${esc(t.name)}</span></td><td class="l">${esc(captainOf(t))}</td>
+        <td><b style="font:400 17px Anton;letter-spacing:.08em">${codes&&codes[t.id]?codes[t.id]:'—'}</b></td>
+        <td><button class="btn sm acc" ${codes&&codes[t.id]?'':'disabled'} onclick="shareCode('${t.id}')">WhatsApp</button> <button class="btn sm" onclick="genCodes('${t.id}')">New</button></td></tr>`).join('')}</tbody></table></div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="genCodes()">Make new passcodes for everyone</button></div>`;
+  }
+  const rows=S.matches.filter(m=>m.a&&m.b).sort((x,y)=>x.round-y.round||x.c-y.c);
+  const cell=(m,tid)=>{ const st=sealState(m,tid), r=subOf(m,tid);
+    return `<td class="l"><span class="tname" style="min-width:0">${esc(teamById(tid).name)}</span><span style="font-size:11px;font-weight:700;color:${st==='none'?'var(--dim)':'var(--mintInk)'}">${
+      st==='none'?'○ not yet':st==='sealed'?'🔒 submitted':'✓ open'}${r&&r.by==='referee'?' (by referee)':''}</span>
+      ${r?` <button class="btn sm" style="padding:2px 7px;font-size:10.5px" onclick="reopenSub('${m.id}','${tid}')">Reopen</button>`:''}</td>`; };
+  h+=`<div class="bSep"></div><div class="hd" style="padding:0 0 6px"><b>Who has submitted</b><span>${rows.reduce((n,m)=>n+(subOf(m,m.a)?1:0)+(subOf(m,m.b)?1:0),0)} of ${rows.length*2}</span></div>
+    <div class="tblWrap" style="padding:0"><table class="tbl"><thead><tr><th class="l">Match</th><th class="l">Team</th><th class="l">Team</th></tr></thead><tbody>
+    ${rows.map(m=>`<tr><td class="l" style="white-space:nowrap"><b>${m.stage==='league'?'R'+m.round:m.stage==='final'?'Final':'Bronze'}</b> <span class="dimtxt">${esc(courtName(m.c))}</span></td>${cell(m,m.a)}${cell(m,m.b)}</tr>`).join('')}</tbody></table></div></div>`;
+  return h;
 }
 function setupEvent(){
   const m=S.meta;
@@ -1688,14 +1925,15 @@ function exportCSV(){
   a.download='team-event-2-results.csv'; a.click(); toast('Spreadsheet exported'); }
 
 /* ---------- resets ---------- */
-function wipeMatch(m){ m.log=[]; m.fs=null; m.lineup={}; m.flip={}; m.acked=[]; m.endsAcked=false; m.server='a'; m.startLeft=null; }
+function wipeMatch(m){ if(S.subs&&S.subs[m.id]) Object.keys(S.subs[m.id]).forEach(t=>{ if(S.subs[m.id][t].enc) putSub(m,t,null,'reset'); });
+  m.log=[]; m.fs=null; m.lineup={}; m.flip={}; m.acked=[]; m.endsAcked=false; m.server='a'; m.startLeft=null; }
 function scopeMatches(scope){
   if(scope==='all') return S.matches;
   if(scope==='finals') return S.matches.filter(m=>m.stage!=='league');
   if(scope==='league') return LEAGUE();
   return LEAGUE().filter(m=>'r'+m.round===scope);
 }
-const scoresIn=scope=>scopeMatches(scope).filter(m=>started(m)||Object.keys(m.lineup||{}).length).length;
+const scoresIn=scope=>scopeMatches(scope).filter(m=>started(m)||Object.keys(m.lineup||{}).length||subOf(m,m.a)||subOf(m,m.b)).length;
 function resetScores(scope){
   if(!isAdmin()) return; const L=scopeMatches(scope), n=scoresIn(scope); if(!n) return toast('Nothing to clear there');
   if(!confirm('Clear scores and line-ups for '+n+' match'+(n>1?'es':'')+'? Teams and courts stay.'+(sync.on?'\n\nThis clears them on the other devices too.':''))) return;
@@ -1706,7 +1944,7 @@ function resetModal(){
   const line=(scope,label,note)=>{ const n=scoresIn(scope);
     return `<div class="rsRow"><div><div class="rsT">${label}</div><div class="rsN">${note}</div></div>
       <button class="btn sm ${n?'dgr':''}" ${n?'':'disabled'} onclick="closeModal();resetScores('${scope}')">${n?'Clear '+n:'Nothing'}</button></div>`; };
-  return `<h3>Reset scores</h3><p class="hint">Clears results and line-ups. Teams, courts and the schedule stay.</p>
+  return `<h3>Reset scores</h3><p class="hint">Clears results, line-ups and captains' submissions. Teams, courts, the schedule and captain passcodes stay.</p>
     ${line('all','Everything','League, Final and Bronze')}${line('league','League only','All four rounds')}${line('finals','Final & Bronze','League untouched')}
     <div class="eyebrow" style="margin:14px 2px 6px">One round</div>${[1,2,3,4].map(r=>line('r'+r,'Round '+r,'5 matches')).join('')}
     <button class="btn" style="width:100%;margin-top:10px" onclick="closeModal()">Close</button>`;
@@ -1714,7 +1952,9 @@ function resetModal(){
 async function resetEvent(){
   if(!isAdmin()) return;
   if(!confirm('Reset everything — scores, line-ups and the original roster?'+(sync.on?' This clears the other devices too.':''))) return;
+  S.matches.forEach(m=>{ if(S.subs&&S.subs[m.id]) Object.keys(S.subs[m.id]).forEach(t=>putSub(m,t,null,'reset')); });
   const keep={role:S.role,adminHash:S.adminHash,scorerHash:S.scorerHash,orgHash:S.orgHash,access:S.access,theme:S.theme,mode:S.mode,
+    subs:S.subs,capHash:S.capHash,capBox:S.capBox,
     meta:S.meta,rules:S.rules,courts:S.courts,finC:S.finC,broC:S.broC,host:S.host,organisers:S.organisers,sponsors:S.sponsors};
   S=Object.assign(blank(),keep); closeRef(); save(); render(); toast('Event reset');
   if(sync.on&&canScore()) syncPublishAll();
@@ -1726,8 +1966,8 @@ function resultsText(scope){
   const ch=champions();
   if(ch.gold) t+=`\n🏆 *Champions:* ${ch.gold.name}\n🥈 ${ch.silver?ch.silver.name:''}\n${ch.bronze?'🥉 '+ch.bronze.name+'\n':''}`;
   if(scope==='all'||scope==='table'){
-    t+=`\n*STANDINGS* _(points scored)_\n`;
-    standings().forEach(r=>{ t+=`${r.rank}. ${r.team.name} — ${r.pf} pts (${r.diff>0?'+':''}${r.diff}) · ${r.w}W ${r.l}L${r.rank<=2?' 🏆':r.rank<=4?' 🥉':''}\n`; });
+    t+=`\n*STANDINGS* _(wins, then point difference)_\n`;
+    standings().forEach(r=>{ t+=`${r.rank}. ${r.team.name} — ${r.w}W ${r.l}L · ${r.diff>0?'+':''}${r.diff} · ${r.pf} pts${r.rank<=2?' 🏆':r.rank<=4?' 🥉':''}\n`; });
     t+=`_${leaguePlayed()} of ${LEAGUE().length} league matches played_\n`;
   }
   if(scope==='all'){
@@ -1813,7 +2053,7 @@ function fiPodium(ctx,y,names){
 function bodyStandings(ctx,y){
   const L=IMG_PAD,R=IMG_W-IMG_PAD, st=standings(), rowH=58;
   y=fiHead(ctx,y,'League standings',leaguePlayed()+' of '+LEAGUE().length+' played');
-  const cols=[['P',58],['W',58],['L',58],['PTS',86],['PA',72],['+/-',80]], qW=120, fixed=cols.reduce((s,c)=>s+c[1],0), teamW=R-L-64-fixed-qW;
+  const cols=[['P',58],['W',70],['L',58],['+/-',80],['PTS',72],['PA',72]], qW=120, fixed=cols.reduce((s,c)=>s+c[1],0), teamW=R-L-64-fixed-qW;
   ctx.fillStyle=HEAD_FILL; ctx.fillRect(L,y,R-L,40); ctx.font=ifont(13.5,800); ctx.fillStyle='#475569';
   imgMid(ctx,'#',L+32,y+26); ctx.fillText('TEAM',L+64,y+26); let cx=L+64+teamW; cols.forEach(([l,w])=>{ imgMid(ctx,l,cx+w/2,y+26); cx+=w; }); y+=40;
   st.forEach((r,i)=>{ ctx.fillStyle=r.rank<=2?'#fff9e6':r.rank<=4?'#fbf3ec':(i%2?'#f8fafc':IMG_PAPER); ctx.fillRect(L,y,R-L,rowH);
@@ -1821,13 +2061,13 @@ function bodyStandings(ctx,y){
     if(r.rank<=3) medalDot(ctx,L+32,y+rowH/2,r.rank,15); else { ctx.font=ifont(19,700); ctx.fillStyle=IMG_MUTED; imgMid(ctx,String(r.rank),L+32,y+rowH/2+7); }
     ctx.font=ifont(21,800); ctx.fillStyle=IMG_INK; ctx.fillText(fitText(ctx,r.team.name,teamW-12),L+64,y+27);
     ctx.font=ifont(14,500); ctx.fillStyle=IMG_MUTED; ctx.fillText(fitText(ctx,captainOf(r.team),teamW-12),L+64,y+47);
-    let c=L+64+teamW; [r.p,r.w,r.l,r.pf,r.pa,(r.diff>0?'+':'')+r.diff].forEach((v,k)=>{
-      ctx.font=k===3?afont(26):ifont(20,k===5?800:500); ctx.fillStyle=k===3?'#9a6400':IMG_INK; imgMid(ctx,String(v),c+cols[k][1]/2,y+rowH/2+8); c+=cols[k][1]; });
+    let c=L+64+teamW; [r.p,r.w,r.l,(r.diff>0?'+':'')+r.diff,r.pf,r.pa].forEach((v,k)=>{
+      ctx.font=k===1?afont(26):ifont(20,k===3?800:500); ctx.fillStyle=k===1?'#9a6400':IMG_INK; imgMid(ctx,String(v),c+cols[k][1]/2,y+rowH/2+8); c+=cols[k][1]; });
     if(r.rank<=4){ const lbl=r.rank<=2?'FINAL':'BRONZE'; ctx.font=ifont(13,800); const tw=ctx.measureText(lbl).width+18;
       ctx.fillStyle=r.rank<=2?'#c9971c':'#b4652a'; ctx.fillRect(c+12,y+rowH/2-13,tw,26); ctx.fillStyle='#fff'; ctx.fillText(lbl,c+21,y+rowH/2+5); }
     imgRule(ctx,L,y+rowH,R,'#e2e8f0'); y+=rowH; });
   imgRule(ctx,L,y,R,'#94a3b8'); y+=16;
-  ctx.font=ifont(15,400); ctx.fillStyle=IMG_MUTED; ctx.fillText('Ranked on points scored, then point difference, then wins · top 2 to the Final, 3rd & 4th for Bronze',L,y+12);
+  ctx.font=ifont(15,400); ctx.fillStyle=IMG_MUTED; ctx.fillText('Ranked on wins, point difference, head-to-head, points won, fewest conceded · top 2 to the Final, 3rd & 4th for Bronze',L,y+12);
   return y+40;
 }
 function bodyRound(ctx,y,r){ const ms=LEAGUE().filter(m=>m.round===r).sort((a,b)=>a.c-b.c);
@@ -1928,11 +2168,11 @@ function orderSheet(withData){
 function standingsTable(withData){
   const st=standings();
   return `<table class="pt" style="--rh:13mm;--fs:14.5px"><tr><th class="c" style="width:10mm">#</th><th>Team</th><th style="width:30mm">Captain</th>
-    <th class="c" style="width:11mm">P</th><th class="c" style="width:11mm">W</th><th class="c" style="width:11mm">L</th><th class="c" style="width:17mm">Points</th>
-    <th class="c" style="width:15mm">PA</th><th class="c" style="width:15mm">+/-</th><th class="c" style="width:20mm">Plays</th></tr>
+    <th class="c" style="width:11mm">P</th><th class="c" style="width:13mm">W</th><th class="c" style="width:11mm">L</th><th class="c" style="width:15mm">+/-</th>
+    <th class="c" style="width:17mm">Pts won</th><th class="c" style="width:17mm">Pts lost</th><th class="c" style="width:20mm">Plays</th></tr>
     ${st.map(r=>`<tr class="${withData&&r.rank<=2?'q1':withData&&r.rank<=4?'q3':''}"><td class="c">${withData?r.rank:''}</td><td class="w">${esc(r.team.name)}</td>
-      <td class="dim">${esc(captainOf(r.team))}</td><td class="c">${withData?r.p:''}</td><td class="c">${withData?r.w:''}</td><td class="c">${withData?r.l:''}</td>
-      <td class="c w">${withData?r.pf:''}</td><td class="c">${withData?r.pa:''}</td><td class="c">${withData?(r.diff>0?'+':'')+r.diff:''}</td>
+      <td class="dim">${esc(captainOf(r.team))}</td><td class="c">${withData?r.p:''}</td><td class="c w">${withData?r.w:''}</td><td class="c">${withData?r.l:''}</td>
+      <td class="c">${withData?(r.diff>0?'+':'')+r.diff:''}</td><td class="c">${withData?r.pf:''}</td><td class="c">${withData?r.pa:''}</td>
       <td class="c">${withData?(r.rank<=2?'Final':r.rank<=4?'Bronze':''):''}</td></tr>`).join('')}</table>`;
 }
 function podiumPrint(withData){ const ch=withData?champions():{};
@@ -1942,7 +2182,7 @@ function podiumPrint(withData){ const ch=withData?champions():{};
 function standingsSheet(withData){
   return sheet('League standings',leaguePlayed()+' of '+LEAGUE().length+' played',
     standingsTable(withData)+(withData&&(champions().gold||champions().bronze)?podiumPrint(true):''),
-    'Ranked on points scored, then point difference, then wins, then head-to-head · top 2 play the Final, 3rd & 4th play for Bronze');
+    'Ranked on wins, then point difference, then head-to-head (two teams level that met), then points won, then fewest points conceded · top 2 play the Final, 3rd & 4th play for Bronze');
 }
 function finalsSheet(withData){
   const box=(m,lbl)=>{ const A=teamById(m.a),B=teamById(m.b),s=scoreOf(m),w=withData&&winnerOf(m),sh=withData&&counts(m)&&A&&B;
@@ -2054,11 +2294,12 @@ function matchPayload(m){ return {lineup:m.lineup||{},flip:m.flip||{},log:m.log|
   startLeft:m.startLeft||null,acked:m.acked||[],endsAcked:!!m.endsAcked}; }
 function syncSnapshot(){
   const o={};
-  if(S.adminHash||S.scorerHash||S.orgHash) o[K('cfg')]={adminHash:S.adminHash||'',scorerHash:S.scorerHash||'',orgHash:S.orgHash||''};
+  if(S.adminHash||S.scorerHash||S.orgHash) o[K('cfg')]={adminHash:S.adminHash||'',scorerHash:S.scorerHash||'',orgHash:S.orgHash||'',capHash:S.capHash||{},capBox:S.capBox||''};
   o[K('fmt')]={meta:S.meta,rules:S.rules,access:ACCESS(),courts:S.courts,finC:S.finC,broC:S.broC};
   o[K('brand')]={host:HOST(),organisers:ORGANISERS(),sponsors:SPONSORS()};
-  S.teams.forEach(t=>{ o[K('team:'+t.id)]={name:t.name,players:t.players.map(p=>p.name)}; });
+  S.teams.forEach(t=>{ o[K('team:'+t.id)]={name:t.name,players:t.players.map(p=>p.name),pools:t.players.map(p=>p.pool),cap:t.cap||null}; });
   S.matches.forEach(m=>{ o[K('m:'+m.id)]=matchPayload(m); });
+  Object.keys(S.subs||{}).forEach(mid=>Object.keys(S.subs[mid]).forEach(tid=>{ o[K('lu:'+mid+':'+tid)]=S.subs[mid][tid]; }));
   return o;
 }
 function rowKind(k){ return k.slice(sync.event.length+1).split(':')[0]; }
@@ -2067,7 +2308,9 @@ function syncScan(){
   const snap=syncSnapshot(), scoring=canScore(); let n=0;
   Object.keys(snap).forEach(k=>{ const s=JSON.stringify(snap[k]); if(sync.sent[k]===s) return;
     const kind=rowKind(k);
-    if(!scoring||(ADMIN_ROWS.indexOf(kind)>=0&&!isAdmin())||(kind==='team'&&!canEditTeams())){ sync.sent[k]=s; return; }
+    /* a captain's phone only ever sends its own team's line-ups */
+    const capOwn=kind==='lu'&&isCaptain()&&k.split(':').pop()===S.capTeam;
+    if(!capOwn&&(!scoring||(ADMIN_ROWS.indexOf(kind)>=0&&!isAdmin())||(kind==='team'&&!canEditTeams()))){ sync.sent[k]=s; return; }
     sync.dirty[k]=s; sync.rev[k]=(sync.rev[k]||0)+1; n++; });
   sync.pending=Object.keys(sync.dirty).length; if(n) schedulePush(); syncChrome();
 }
@@ -2077,13 +2320,21 @@ function applyRow(k,d){
   if(kind==='cfg'){ let hit=false;
     if(d.adminHash&&d.adminHash!==S.adminHash){S.adminHash=d.adminHash;hit=true;}
     if(d.scorerHash!==undefined&&d.scorerHash!==S.scorerHash){S.scorerHash=d.scorerHash||'';hit=true;}
-    if(d.orgHash!==undefined&&d.orgHash!==S.orgHash){S.orgHash=d.orgHash||'';hit=true;} return hit; }
+    if(d.orgHash!==undefined&&d.orgHash!==S.orgHash){S.orgHash=d.orgHash||'';hit=true;}
+    if(d.capHash&&JSON.stringify(d.capHash)!==JSON.stringify(S.capHash||{})){S.capHash=d.capHash;hit=true;}
+    if(d.capBox!==undefined&&d.capBox!==S.capBox){S.capBox=d.capBox||'';CODES=null;hit=true;} return hit; }
+  if(kind==='lu'){ const m=matchById(parts[1]); if(!m||!d) return false; S.subs=S.subs||{}; S.subs[m.id]=S.subs[m.id]||{};
+    const was=subOf(m,parts[2]); S.subs[m.id][parts[2]]={enc:d.enc||null,at:d.at||0,by:d.by||''};
+    if(was&&!d.enc&&!hasLog(m)) m.lineup={};
+    return true; }
   if(kind==='fmt'){ if(!d) return false; S.meta=d.meta||S.meta; S.rules=normRules(d.rules); if(d.access) S.access=normAccess(d.access);
     if(Array.isArray(d.courts)&&d.courts.length===S.courts.length) S.courts=d.courts.slice();
     if(d.finC!=null) S.finC=d.finC; if(d.broC!=null) S.broC=d.broC; applyRules(); return true; }
   if(kind==='brand'){ const nb=normBrand({host:d.host,organisers:d.organisers,sponsors:d.sponsors}); S.host=nb.host; S.organisers=nb.organisers; S.sponsors=nb.sponsors; return true; }
   if(kind==='team'){ const t=teamById(parts[1]); if(!t||!d) return false; if(d.name) t.name=d.name;
-    (d.players||[]).forEach((n,i)=>{ if(t.players[i]&&n) t.players[i].name=n; }); return true; }
+    (d.players||[]).forEach((x,i)=>{ const p=t.players[i]; if(p&&typeof x==='string'&&x) p.name=x; });
+    (d.pools||[]).forEach((x,i)=>{ const p=t.players[i]; if(p&&POOL_OPTS.indexOf(x)>=0) p.pool=x; });
+    if(d.cap!==undefined) t.cap=d.cap||null; return true; }
   if(kind==='m'){ const m=matchById(parts[1]); if(!m||!d) return false;
     m.lineup=d.lineup||{}; m.flip=d.flip||{}; m.log=d.log||[]; m.fs=d.fs||null; m.server=d.server||'a'; m.startLeft=d.startLeft||null;
     m.acked=d.acked||[]; m.endsAcked=!!d.endsAcked; return true; }
@@ -2101,7 +2352,7 @@ async function supa(path,opts){
 function schedulePush(){ clearTimeout(pushTimer); pushTimer=setTimeout(syncPush,PUSH_MS); }
 async function syncPush(){
   if(!sync.on||sync.busy) return; const keys=Object.keys(sync.dirty); if(!keys.length) return;
-  if(!canScore()){ syncBaseline(); return; }
+  if(!canScore()&&!isCaptain()){ syncBaseline(); return; }
   sync.busy=true; syncStatus('sync');
   const batch=keys.slice(0,60), items=batch.map(k=>({key:k,data:JSON.parse(sync.dirty[k]),rev:sync.rev[k]}));
   try{ const res=await supa('/rest/v1/rpc/osl_put',{method:'POST',body:JSON.stringify({items,by:sync.device})});
@@ -2134,7 +2385,7 @@ async function syncPull(force){
     sync.cursor=newest;
     if(changed){ refresh(); quietSave(); const snap=syncSnapshot(); Object.keys(snap).forEach(k=>{ if(!sync.dirty[k]) sync.sent[k]=JSON.stringify(snap[k]); }); }
     sync.lastOk=Date.now(); syncSave(); syncStatus('live'); syncLog(changed?'received '+changed+' change'+(changed>1?'s':''):'checked · nothing new');
-    if(changed){ if(S.ref) renderRef(); if(document.querySelector('input.sc:focus')) scoreDirty=true; else if(!modalOpen) render(); }
+    if(changed) bgRender();
   }catch(e){ syncLog('pull failed: '+(e.message||e)); syncStatus('off_line',String(e.message||e)); }
   finally{ sync.pulling=false; }
 }
@@ -2192,8 +2443,16 @@ let S=load();
 applyTheme(); applyRules(); guardHistory(); syncLoad();
 if(!Object.keys(sync.sent).length) syncBaseline();
 render();
-if(sync.on){ syncStatus('sync'); pullTimer=setInterval(()=>syncPull(false),PULL_MS); syncPull(true).then(()=>syncScan()); }
-else syncStatus('off');
+const URLP=(()=>{ try{ return new URLSearchParams(location.search); }catch(e){ return null; } })();
+async function capFromLink(){
+  const tid=URLP&&URLP.get('team'), k=URLP&&URLP.get('k'); if(!tid||!teamById(tid)) return;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  if(isCaptain()&&S.capTeam===tid) return;
+  if(k) return tryCapLogin(k,tid);
+  accessModal.team=tid; if(S.role==='view') openModal(accessModal());
+}
+if(sync.on){ syncStatus('sync'); pullTimer=setInterval(()=>syncPull(false),PULL_MS); syncPull(true).then(()=>{ syncScan(); capFromLink(); }); }
+else { syncStatus('off'); capFromLink(); }
 </script>
 </body>
 </html>
